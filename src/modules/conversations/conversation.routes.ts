@@ -1,6 +1,13 @@
 import { Router } from 'express';
 
-import { requireAuth as authMiddleware } from '../auth/auth.middleware';
+import { requireAuth } from '../auth/auth.middleware';
+import { validate } from '../../shared/middleware/validate';
+import {
+  createDirectBodySchema,
+  createGroupBodySchema,
+  conversationsPaginationQuerySchema,
+  conversationsSearchQuerySchema,
+} from '../../shared/validators';
 
 import {
   createConversation,
@@ -11,14 +18,10 @@ import {
 
 const router = Router();
 
-/**
- * Sidebar conversation list
- * GET /api/conversations
- */
-router.get('/', authMiddleware, getSidebarConversations);
-router.get('/search', authMiddleware, searchSidebarConversations);
-router.post('/', authMiddleware, createConversation);
-
-router.post('/group', authMiddleware, createGroup);
+router.get('/',           requireAuth, validate(conversationsPaginationQuerySchema, 'query'), getSidebarConversations);
+router.get('/search',     requireAuth, validate(conversationsSearchQuerySchema, 'query'), searchSidebarConversations);
+router.post('/',          requireAuth, validate(createDirectBodySchema), createConversation);
+router.post('/direct',    requireAuth, validate(createDirectBodySchema), createConversation); // alias — FE uses /direct
+router.post('/group',     requireAuth, validate(createGroupBodySchema), createGroup);
 
 export default router;
