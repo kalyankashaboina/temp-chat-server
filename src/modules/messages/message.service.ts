@@ -1,94 +1,131 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// messages/message.service.ts — Business logic only.
+// DB access via messageRepository. Schemas from shared/validators.
+// ─────────────────────────────────────────────────────────────────────────────
 import { Types } from 'mongoose';
 
-import { Conversation } from '../conversations/conversation.model';
+import { AppError } from '../../shared/errors/AppError';
+import {
+  createMessageSchema,
+  editMessageSchema,
+  reactionSchema,
+  messagesPaginationSchema,
+  type CreateMessageInput,
+  type EditMessageInput,
+  type ReactionInput,
+} from '../../shared/validators';
+import { conversationRepository } from '../conversations/repository/conversation.repository';
 
-import { Message } from './message.model';
+import { messageRepository }      from './repository/message.repository';
 
-/* =====================================================
-   CREATE MESSAGE (PLAINTEXT)
-===================================================== */
+// ── Create message ────────────────────────────────────────────────────────────
 
-interface CreateMessageArgs {
-  conversationId: string;
-  senderId: string;
-  content: string;
-  type?: 'text' | 'image' | 'file' | 'system';
-  attachments?: any[];
-}
+export async function createMessage(raw: CreateMessageInput) {
+  const input = createMessageSchema.parse(raw);
 
-export async function createMessage({
-  conversationId,
-  senderId,
-  content,
-  type = 'text',
-  attachments = [],
-}: CreateMessageArgs) {
-  if (!content?.trim()) {
-    throw new Error('EMPTY_MESSAGE');
-  }
+  const convo = await conversationRepository.memberIds(input.conversationId);
+  if (!convo) throw new AppError('Conversation not found', 404);
 
-  if (!Types.ObjectId.isValid(conversationId) || !Types.ObjectId.isValid(senderId)) {
-    throw new Error('INVALID_OBJECT_ID');
-  }
+  const isMember = (convo as any).participants
+    .some((p: Types.ObjectId) => p.toString() === input.senderId);
+  if (!isMember) throw new AppError('You are not a member of this conversation', 403);
 
-  const conversation = await Conversation.findById(conversationId).select('participants');
-
-  if (!conversation) {
-    throw new Error('Conversation not found');
-  }
-
-  const isParticipant = conversation.participants.some((p) => p.toString() === senderId);
-
-  if (!isParticipant) {
-    throw new Error('FORBIDDEN');
-  }
-
-  return Message.create({
-    conversationId: new Types.ObjectId(conversationId),
-    senderId: new Types.ObjectId(senderId),
-    content,
-    type,
-    attachments,
+  const msg = await messageRepository.create({
+    conversationId: new Types.ObjectId(input.conversationId),
+    senderId:       new Types.ObjectId(input.senderId),
+    content:        input.content,
+    type:           input.type,
+    attachments:    input.attachments as any,
+    ...(input.replyTo ? {
+      replyTo: {
+        messageId:  new Types.ObjectId(input.replyTo.messageId),
+        content:    input.replyTo.content,
+        senderName: input.replyTo.senderName,
+      },
+    } : {}),
   });
+
+  // Update sidebar preview
+  await conversationRepository.updateLastMessage(input.conversationId, (msg as any)._id as Types.ObjectId);
+
+  return msg;
 }
 
-/* =====================================================
-   GET PAGINATED MESSAGES
-===================================================== */
+// ── Edit message ──────────────────────────────────────────────────────────────
 
-interface GetPaginatedMessagesArgs {
+export async function editMessage(raw: EditMessageInput, requesterId: string) {
+  const { messageId, content } = editMessageSchema.parse(raw);
+
+  const msg = await messageRepository.findOwnedById(messageId, requesterId);
+  if (!msg) throw new AppError('Message not found or permission denied', 404);
+
+  return messageRepository.edit(messageId, content);
+}
+
+// ── Delete message ────────────────────────────────────────────────────────────
+
+export async function deleteMessage(messageId: string, requesterId: string) {
+  const msg = await messageRepository.findOwnedById(messageId, requesterId);
+  if (!msg) throw new AppError('Message not found or permission denied', 404);
+
+  return messageRepository.softDelete(messageId);
+}
+
+// ── Add reaction ──────────────────────────────────────────────────────────────
+
+export async function addReaction(raw: ReactionInput, userId: string, username: string) {
+  const { messageId, emoji } = reactionSchema.parse(raw);
+
+  const msg = await messageRepository.findById(messageId);
+  if (!msg || (msg as any).isDeleted) throw new AppError('Message not found', 404);
+
+  // Idempotent — skip if already reacted with same emoji
+  const already = ((msg as any).reactions ?? []).some(
+    (r: any) => r.userId?.toString() === userId && r.emoji === emoji,
+  );
+  if (already) return msg;
+
+  return messageRepository.addReaction(messageId, userId, username, emoji);
+}
+
+// ── Remove reaction ───────────────────────────────────────────────────────────
+
+export async function removeReaction(raw: ReactionInput, userId: string) {
+  const { messageId, emoji } = reactionSchema.parse(raw);
+  return messageRepository.removeReaction(messageId, userId, emoji);
+}
+
+// ── Mark conversation read ────────────────────────────────────────────────────
+
+export async function markConversationRead(conversationId: string, userId: string) {
+  const unread = await messageRepository.unreadInConversation(conversationId, userId);
+  const ids    = unread.map((m: any) => m._id.toString());
+  if (!ids.length) return [];
+
+  await messageRepository.markManyRead(ids, userId);
+  return ids;
+}
+
+// ── Paginated messages ────────────────────────────────────────────────────────
+
+export async function getPaginatedMessages(raw: {
   conversationId: string;
   cursor?: string;
   limit: number;
-}
+}) {
+  const { conversationId, cursor, limit } = messagesPaginationSchema.parse(raw);
 
-export async function getPaginatedMessages({
-  conversationId,
-  cursor,
-  limit,
-}: GetPaginatedMessagesArgs) {
-  const query: any = {
-    conversationId: new Types.ObjectId(conversationId),
-  };
+  const convOid  = new Types.ObjectId(conversationId);
+  const cursorId = cursor ? new Types.ObjectId(cursor) : null;
+  const rows     = await messageRepository.paginated(convOid, cursorId, limit);
 
-  if (cursor) {
-    if (!Types.ObjectId.isValid(cursor)) {
-      throw new Error('INVALID_CURSOR');
-    }
-    query._id = { $lt: new Types.ObjectId(cursor) };
-  }
-
-  const messages = await Message.find(query)
-    .sort({ _id: -1 })
-    .limit(limit + 1)
-    .lean();
-
-  const hasMore = messages.length > limit;
-  if (hasMore) messages.pop();
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
+  rows.reverse();
 
   return {
-    messages: messages.reverse(),
-    nextCursor: hasMore ? messages[0]._id.toString() : null,
+    messages:   rows,
+    nextCursor: hasMore ? rows[0]._id.toString() : null,
     hasMore,
   };
 }

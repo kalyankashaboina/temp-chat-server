@@ -1,62 +1,122 @@
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
 
+import { AppError } from '../../shared/errors/AppError';
+import { HTTP } from '../../shared/constants';
 import { Conversation } from '../conversations/conversation.model';
+import { scheduledMessageSchema } from '../../shared/validators';
 
 import { getPaginatedMessages } from './message.service';
+import { Message } from './message.model';
+import { messageRepository } from './repository/message.repository';
 
+
+
+// GET /api/conversations/:conversationId/messages
 export async function getConversationMessages(req: Request, res: Response) {
-  try {
-    const userId = (req as any).user?.id;
-    const { conversationId } = req.params;
-    const { cursor, limit } = req.query;
+  const { conversationId } = req.params;
+  const userId = req.user!.userId;
 
-    if (!userId || !conversationId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid request',
-      });
-    }
+  // Verify membership
+  const convo = await Conversation.findOne({ _id: conversationId, participants: userId }).select('_id');
+  if (!convo) throw new AppError('Conversation not found or access denied', HTTP.FORBIDDEN);
 
-    if (!Types.ObjectId.isValid(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid conversationId',
-      });
-    }
+  const result = await getPaginatedMessages({
+    conversationId,
+    cursor: req.query.cursor as string | undefined,
+    limit: Number(req.query.limit) || 40,
+  });
 
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      participants: userId,
-    }).select('_id');
+  res.json({ success: true, ...result });
+}
 
-    if (!conversation) {
-      return res.status(403).json({
-        success: false,
-        message: 'Forbidden',
-      });
-    }
+// PUT /api/messages/:id/star
+export async function starMessage(req: Request, res: Response) {
+  const msg = await messageRepository.star(req.params.id, req.user!.userId);
+  if (!msg) throw new AppError('Message not found', HTTP.NOT_FOUND);
+  res.json({ success: true, data: msg });
+}
 
-    const pageSize = Math.min(Number(limit) || 30, 50);
+// DELETE /api/messages/:id/star
+export async function unstarMessage(req: Request, res: Response) {
+  const msg = await messageRepository.unstar(req.params.id, req.user!.userId);
+  if (!msg) throw new AppError('Message not found', HTTP.NOT_FOUND);
+  res.json({ success: true, data: msg });
+}
 
-    const result = await getPaginatedMessages({
-      conversationId,
-      cursor: cursor ? String(cursor) : undefined,
-      limit: pageSize,
-    });
+// PUT /api/messages/:id/pin
+export async function pinMessage(req: Request, res: Response) {
+  const msg = await Message.findById(req.params.id).lean();
+  if (!msg) throw new AppError('Message not found', HTTP.NOT_FOUND);
+  await messageRepository.pin(req.params.id);
+  res.json({ success: true });
+}
 
-    return res.status(200).json({
-      success: true,
-      data: result.messages,
-      nextCursor: result.nextCursor,
-      hasMore: result.hasMore,
-    });
-  } catch (error: any) {
-    console.error('Fetch messages error:', error);
+// DELETE /api/messages/:id/pin
+export async function unpinMessage(req: Request, res: Response) {
+  await messageRepository.unpin(req.params.id);
+  res.json({ success: true });
+}
 
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch messages',
-    });
-  }
+// GET /api/conversations/:conversationId/pinned
+export async function getPinnedMessages(req: Request, res: Response) {
+  const { conversationId } = req.params;
+  const userId = req.user!.userId;
+  const convo = await Conversation.findOne({ _id: conversationId, participants: userId }).select('_id');
+  if (!convo) throw new AppError('Access denied', HTTP.FORBIDDEN);
+  const messages = await messageRepository.pinnedInConversation(conversationId);
+  res.json({ success: true, data: messages });
+}
+
+// POST /api/messages/:id/forward
+export async function forwardMessage(req: Request, res: Response) {
+  const { toConversationId } = req.body;
+  const userId = req.user!.userId;
+
+  if (!toConversationId) throw new AppError('toConversationId is required', HTTP.BAD_REQ);
+
+  const original = await Message.findById(req.params.id).lean();
+  if (!original || (original as any).isDeleted) throw new AppError('Message not found', HTTP.NOT_FOUND);
+
+  const destConvo = await Conversation.findOne({ _id: toConversationId, participants: userId }).select('_id');
+  if (!destConvo) throw new AppError('Destination conversation not found', HTTP.FORBIDDEN);
+
+  const forwarded = await Message.create({
+    conversationId: new Types.ObjectId(toConversationId),
+    senderId: new Types.ObjectId(userId),
+    content: (original as any).content,
+    type: (original as any).type,
+    attachments: (original as any).attachments || [],
+    forwardedFrom: (original as any).senderId?.toString(),
+  });
+
+  res.status(HTTP.CREATED).json({ success: true, data: forwarded });
+}
+
+// GET /api/messages/scheduled
+export async function getScheduledMessages(req: Request, res: Response) {
+  const messages = await messageRepository.findScheduled(req.user!.userId);
+  res.json({ success: true, data: messages });
+}
+
+// POST /api/messages/scheduled
+export async function createScheduledMessage(req: Request, res: Response) {
+  const parsed = scheduledMessageSchema.parse({ ...req.body, senderId: req.user!.userId });
+  const msg = await Message.create({
+    conversationId: new Types.ObjectId(parsed.conversationId),
+    senderId: new Types.ObjectId(parsed.senderId),
+    content: parsed.content,
+    type: 'text',
+    attachments: [],
+    isScheduled: true,
+    scheduledAt: parsed.scheduledAt,
+  });
+  res.status(HTTP.CREATED).json({ success: true, data: msg });
+}
+
+// DELETE /api/messages/scheduled/:id
+export async function deleteScheduledMessage(req: Request, res: Response) {
+  const deleted = await messageRepository.deleteScheduled(req.params.id, req.user!.userId);
+  if (!deleted) throw new AppError('Scheduled message not found', HTTP.NOT_FOUND);
+  res.json({ success: true });
 }

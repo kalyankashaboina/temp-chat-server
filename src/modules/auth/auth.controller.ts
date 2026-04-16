@@ -1,133 +1,128 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// auth/auth.controller.ts — HTTP layer only. Delegates to service.
+// ─────────────────────────────────────────────────────────────────────────────
 import type { Request, Response, NextFunction } from 'express';
 
-import { AppError } from '../../shared/errors/AppError';
-import { logger } from '../../shared/logger';
+import { AppError }  from '../../shared/errors/AppError';
+import { AUTH }      from '../../shared/constants';
 
-import * as authService from './auth.service';
+import * as service  from './auth.service';
 
-/* ===============================
-   Register
-================================ */
+// ── Cookie helper ─────────────────────────────────────────────────────────────
+
+function setAuthCookie(res: Response, token: string): void {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie(AUTH.COOKIE_NAME, token, {
+    httpOnly: true,
+    secure:   isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge:   7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function clearAuthCookie(res: Response): void {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.clearCookie(AUTH.COOKIE_NAME, {
+    httpOnly: true,
+    secure:   isProd,
+    sameSite: isProd ? 'none' : 'lax',
+  });
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    let { username, email, password } = req.body;
-    logger.info('Register attempt', { username, email });
-
-    if (!username || !email || !password) {
-      throw new AppError('Username, email and password are required', 400);
-    }
-
-    email = email.trim().toLowerCase();
-
-    await authService.register(username, email, password);
-
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (err) {
-    logger.error('Register error', { error: err });
-    next(err);
-  }
+    const result = await service.register(req.body);
+    setAuthCookie(res, result.token);
+    return res.status(201).json({ success: true, data: result.user });
+  } catch (err) { next(err); }
 }
 
-/* ===============================
-   Login
-================================ */
+// ── Login ─────────────────────────────────────────────────────────────────────
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    let { email, password } = req.body;
-    logger.info('Login attempt', { email });
-    if (!email || !password) {
-      throw new AppError('Email and password are required', 400);
-    }
-
-    email = email.trim().toLowerCase();
-
-    const token = await authService.login(email, password);
-
-    const isProd = process.env.NODE_ENV === 'production';
-
-    res.cookie('relay_token', token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.status(200).json({ message: 'Login successful' });
-  } catch (err) {
-    next(err);
-  }
+    const result = await service.login(req.body);
+    setAuthCookie(res, result.token);
+    return res.status(200).json({ success: true, data: result.user });
+  } catch (err) { next(err); }
 }
 
-/* ===============================
-   Logout
-================================ */
+// ── Google login ──────────────────────────────────────────────────────────────
+
+export async function googleLogin(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await service.googleAuth(req.body);
+    setAuthCookie(res, result.token);
+    return res.status(200).json({ success: true, data: result.user });
+  } catch (err) { next(err); }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
 
 export async function logout(req: Request, res: Response) {
-  const isProd = process.env.NODE_ENV === 'production';
-  logger.info('Logout attempt', { userId: (req as any).user?._id });
-
-  res.clearCookie('relay_token', {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-  });
-
-  res.status(200).json({ message: 'Logged out successfully' });
+  clearAuthCookie(res);
+  return res.status(200).json({ success: true, message: 'Logged out' });
 }
 
-/* ===============================
-   Me
-================================ */
+// ── Me ────────────────────────────────────────────────────────────────────────
 
 export async function me(req: Request, res: Response) {
-  res.status(200).json((req as any).user);
+  const u = (req as any).user;
+  return res.status(200).json({
+    success: true,
+    data: {
+      id:              u._id.toString(),
+      email:           u.email,
+      name:            u.username,
+      avatar:          u.avatar          ?? '',
+      bio:             u.bio             ?? '',
+      isEmailVerified: u.isEmailVerified,
+      provider:        u.provider,
+    },
+  });
 }
 
-/* ===============================
-   Forgot Password
-================================ */
+// ── Forgot password ───────────────────────────────────────────────────────────
 
 export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.info('Forgot password attempt', { email: req.body.email });
-    const { email } = req.body;
-
-    if (!email) {
-      logger.warn('Forgot password failed: email missing');
-      throw new AppError('Email is required', 400);
-    }
-
-    await authService.forgotPassword(email.toLowerCase());
-
-    // Always success (security)
-    res.status(200).json({
-      message: 'If the email exists, a reset link has been sent',
+    await service.forgotPassword(req.body);
+    return res.status(200).json({
+      success: true,
+      message: 'If an account exists, a reset link has been sent',
     });
-  } catch (err) {
-    logger.error('Forgot password error', { error: err });
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
-/* ===============================
-   Reset Password
-================================ */
+// ── Reset password ────────────────────────────────────────────────────────────
 
 export async function resetPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    const { token, password } = req.body;
-    logger.info('Reset password attempt', { tokenProvided: !!token });
+    await service.resetPassword(req.body);
+    return res.status(200).json({ success: true, message: 'Password reset successful' });
+  } catch (err) { next(err); }
+}
 
-    if (!token || !password) {
-      throw new AppError('Token and password are required', 400);
-    }
+// ── Update profile ────────────────────────────────────────────────────────────
 
-    await authService.resetPassword(token, password);
+export async function updateProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId  = (req as any).user._id.toString();
+    const updated = await service.updateProfile(userId, req.body);
+    return res.status(200).json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
 
-    res.status(200).json({ message: 'Password reset successful' });
-  } catch (err) {
-    next(err);
-  }
+// ── Change password (authenticated) ──────────────────────────────────────────
+
+export async function changePassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId      = (req as any).user._id.toString();
+    const { password } = req.body;
+    if (!password) return next(new AppError('New password is required', 400));
+    await service.changePassword(userId, password);
+    return res.status(200).json({ success: true, message: 'Password changed successfully' });
+  } catch (err) { next(err); }
 }

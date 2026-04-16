@@ -1,85 +1,30 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+// ─────────────────────────────────────────────────────────────────────────────
+// users/user.service.ts — Business logic only.
+// DB access via userRepository. Schemas from shared/validators.
+// ─────────────────────────────────────────────────────────────────────────────
 import { Types } from 'mongoose';
 
-import { env } from '../../config/env';
-import { User } from '../users/user.model';
+import { listUsersSchema, type ListUsersInput } from '../../shared/validators';
 
-interface ListUsersParams {
-  currentUserId: string;
-  q?: string;
-  cursor?: string;
-  limit?: number;
-}
+import { userRepository } from './repository/user.repository';
 
-export async function register(email: string, password: string) {
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new Error('User already exists');
-  }
+export async function listUsers(raw: ListUsersInput) {
+  const { currentUserId, q, cursor, limit } = listUsersSchema.parse(raw);
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const currentOid = new Types.ObjectId(currentUserId);
+  const cursorOid  = cursor ? new Types.ObjectId(cursor) : null;
+  const rows       = await userRepository.searchExcluding(currentOid, q, cursorOid, limit);
 
-  const user = await User.create({
-    email,
-    password: hashedPassword,
-  });
-
-  return user;
-}
-
-export async function login(email: string, password: string) {
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new Error('Invalid credentials');
-  }
-
-  const isValid = await bcrypt.compare(password, user.password);
-  if (!isValid) {
-    throw new Error('Invalid credentials');
-  }
-
-  const token = jwt.sign({ userId: user._id.toString() }, env.JWT_SECRET, { expiresIn: '7d' });
-
-  return token;
-}
-
-export async function listUsers({ currentUserId, q, cursor, limit = 20 }: ListUsersParams) {
-  const query: any = {
-    _id: { $ne: new Types.ObjectId(currentUserId) },
-  };
-
-  // 🔍 Search (optional)
-  if (q && q.trim() !== '') {
-    query.$or = [
-      { username: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } },
-    ];
-  }
-
-  // 📄 Cursor pagination
-  if (cursor) {
-    query._id = {
-      ...query._id,
-      $gt: new Types.ObjectId(cursor),
-    };
-  }
-
-  const users = await User.find(query)
-    .sort({ _id: 1 })
-    .limit(limit + 1) // fetch one extra to detect hasMore
-    .select('_id username email avatar isOnline')
-    .lean();
-
-  const hasMore = users.length > limit;
-  const sliced = hasMore ? users.slice(0, limit) : users;
+  const hasMore = rows.length > limit;
+  const sliced  = hasMore ? rows.slice(0, limit) : rows;
 
   return {
-    data: sliced.map((u) => ({
-      id: u._id.toString(),
+    data: sliced.map((u: any) => ({
+      id:       u._id.toString(),
       username: u.username,
-      email: u.email,
-      avatar: u.avatar,
+      name:     u.username,
+      email:    u.email,
+      avatar:   u.avatar ?? '',
       isOnline: u.isOnline,
     })),
     nextCursor: hasMore ? sliced[sliced.length - 1]._id.toString() : null,

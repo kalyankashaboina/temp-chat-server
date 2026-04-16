@@ -1,0 +1,283 @@
+{
+  "info": {
+    "name": "Relay Chat - Complete API Collection",
+    "description": "Comprehensive API testing for Relay Chat - All endpoints, authentication, validation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Has token\", () => pm.expect(pm.response.json()).to.have.property('token'));",
+                  "pm.collectionVariables.set('authToken', pm.response.json().token);",
+                  "pm.collectionVariables.set('userId', pm.response.json().user._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"confirmPassword\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('authToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@test.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/users?search=alice"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Cookie", "value": "token={{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": "{{baseUrl}}/api/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Updated bio\",\n  \"status\": \"available\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Block User",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/users/{{userId}}/block"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conversations",
+      "item": [
+        {
+          "name": "Get All Conversations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().conversations.length > 0) {",
+                  "  pm.collectionVariables.set('conversationId', pm.response.json().conversations[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/conversations?page=1&limit=20"
+          }
+        },
+        {
+          "name": "Create Direct Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Cookie", "value": "token={{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": "{{baseUrl}}/api/conversations/direct",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participantId\": \"{{userId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Group Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Cookie", "value": "token={{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": "{{baseUrl}}/api/conversations/group",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Group\",\n  \"participantIds\": [\"{{userId}}\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Search Conversations",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/conversations/search?q=test"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Get Messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().messages.length > 0) {",
+                  "  pm.collectionVariables.set('messageId', pm.response.json().messages[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/conversations/{{conversationId}}/messages?page=1&limit=50"
+          }
+        },
+        {
+          "name": "Get Pinned Messages",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/conversations/{{conversationId}}/pinned"
+          }
+        },
+        {
+          "name": "Star Message",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/messages/{{messageId}}/star"
+          }
+        },
+        {
+          "name": "Unstar Message",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/messages/{{messageId}}/star"
+          }
+        },
+        {
+          "name": "Pin Message",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "url": "{{baseUrl}}/api/messages/{{messageId}}/pin"
+          }
+        },
+        {
+          "name": "Forward Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Cookie", "value": "token={{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": "{{baseUrl}}/api/messages/{{messageId}}/forward",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversationIds\": [\"{{conversationId}}\"]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    }
+  ]
+}

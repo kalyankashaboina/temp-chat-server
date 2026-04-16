@@ -1,0 +1,32 @@
+version: '3.8'
+
+# Backend Development Docker Setup
+# Runs ONLY Redis in Docker
+# MongoDB and Backend run on host machine (local or Atlas)
+
+services:
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: relay-chat-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - relay-backend-dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  relay-backend-dev:
+    driver: bridge
+
+volumes:
+  redis_dev_data:
+    driver: local

@@ -7,7 +7,7 @@ import { registerSocketEvents } from './socket.events';
 export function initSocket(server: http.Server) {
   const io = createSocketServer(server);
 
-  // 🔐 auth FIRST
+  //  auth FIRST
   io.use(socketAuth);
 
   // 📡 domain events

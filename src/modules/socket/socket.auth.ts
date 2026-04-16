@@ -24,7 +24,7 @@ export function socketAuth(socket: AuthenticatedSocket, next: (err?: Error) => v
       userId: string;
     };
 
-    // ✅ correct place
+    // OK - correct place
     socket.data.userId = payload.userId;
 
     next();
