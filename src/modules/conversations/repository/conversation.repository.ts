@@ -7,7 +7,7 @@ import type { Types } from 'mongoose';
 import { Conversation } from '../conversation.model';
 
 const PARTICIPANT_FIELDS = '_id username avatar isOnline';
-const LAST_MSG_FIELDS    = '_id content senderId createdAt isDeleted';
+const LAST_MSG_FIELDS = '_id content senderId createdAt isDeleted';
 
 export const conversationRepository = {
   findDirect: (userA: Types.ObjectId, userB: Types.ObjectId) =>
@@ -19,9 +19,7 @@ export const conversationRepository = {
       .lean(),
 
   findById: (id: string) =>
-    Conversation.findById(id)
-      .populate('participants', PARTICIPANT_FIELDS)
-      .lean(),
+    Conversation.findById(id).populate('participants', PARTICIPANT_FIELDS).lean(),
 
   findByIdWithMessages: (id: string) =>
     Conversation.findById(id)
@@ -36,11 +34,7 @@ export const conversationRepository = {
     createdBy?: Types.ObjectId;
   }) => Conversation.create(data),
 
-  paginatedForUser: (
-    userId: Types.ObjectId,
-    cursor: Types.ObjectId | null,
-    limit: number,
-  ) => {
+  paginatedForUser: (userId: Types.ObjectId, cursor: Types.ObjectId | null, limit: number) => {
     const query: Record<string, unknown> = { participants: userId };
     if (cursor) query._id = { $lt: cursor };
     return Conversation.find(query)
@@ -56,14 +50,11 @@ export const conversationRepository = {
     matchingUserIds: Types.ObjectId[],
     nameRegex: RegExp,
     cursor: Types.ObjectId | null,
-    limit: number,
+    limit: number
   ) => {
     const query: Record<string, unknown> = {
       participants: userId,
-      $or: [
-        { name: nameRegex },
-        { type: 'direct', participants: { $in: matchingUserIds } },
-      ],
+      $or: [{ name: nameRegex }, { type: 'direct', participants: { $in: matchingUserIds } }],
     };
     if (cursor) query._id = { $lt: cursor };
     return Conversation.find(query)
@@ -82,4 +73,54 @@ export const conversationRepository = {
 
   memberIds: (conversationId: string) =>
     Conversation.findById(conversationId).select('participants').lean(),
+
+  findByParticipant: (userId: string) =>
+    Conversation.find({ participants: userId }).select('_id').lean(),
+
+  // Group management
+  addMember: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { $addToSet: { participants: userId }, updatedAt: new Date() },
+      { new: true }
+    ).populate('participants', PARTICIPANT_FIELDS),
+
+  removeMember: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { $pull: { participants: userId }, updatedAt: new Date() },
+      { new: true }
+    ).populate('participants', PARTICIPANT_FIELDS),
+
+  updateGroupInfo: (conversationId: string, updates: { name?: string; avatar?: string }) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { ...updates, updatedAt: new Date() },
+      { new: true }
+    ).populate('participants', PARTICIPANT_FIELDS),
+
+  // Mute/Archive
+  muteConversation: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { $addToSet: { mutedBy: userId } },
+      { new: true }
+    ),
+
+  unmuteConversation: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(conversationId, { $pull: { mutedBy: userId } }, { new: true }),
+
+  archiveConversation: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { $addToSet: { archivedBy: userId } },
+      { new: true }
+    ),
+
+  unarchiveConversation: (conversationId: string, userId: Types.ObjectId) =>
+    Conversation.findByIdAndUpdate(
+      conversationId,
+      { $pull: { archivedBy: userId } },
+      { new: true }
+    ),
 };

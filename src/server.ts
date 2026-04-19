@@ -69,7 +69,7 @@ async function bootstrap() {
 function setupGracefulShutdown() {
   const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
 
-  signals.forEach(signal => {
+  signals.forEach((signal) => {
     process.on(signal, async () => {
       logger.info(`\n${signal} received. Starting graceful shutdown...`);
 
@@ -115,4 +115,3 @@ function setupGracefulShutdown() {
 }
 
 bootstrap();
-

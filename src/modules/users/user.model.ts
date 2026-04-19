@@ -38,43 +38,68 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-const PrivacySchema = new Schema({
-  lastSeenVisibility:     { type: String, enum: ['everyone','contacts','nobody'], default: 'everyone' },
-  profilePhotoVisibility: { type: String, enum: ['everyone','contacts','nobody'], default: 'everyone' },
-  aboutVisibility:        { type: String, enum: ['everyone','contacts','nobody'], default: 'everyone' },
-  readReceipts:           { type: Boolean, default: true },
-  typingIndicators:       { type: Boolean, default: true },
-  onlineStatus:           { type: Boolean, default: true },
-}, { _id: false });
+const PrivacySchema = new Schema(
+  {
+    lastSeenVisibility: {
+      type: String,
+      enum: ['everyone', 'contacts', 'nobody'],
+      default: 'everyone',
+    },
+    profilePhotoVisibility: {
+      type: String,
+      enum: ['everyone', 'contacts', 'nobody'],
+      default: 'everyone',
+    },
+    aboutVisibility: {
+      type: String,
+      enum: ['everyone', 'contacts', 'nobody'],
+      default: 'everyone',
+    },
+    readReceipts: { type: Boolean, default: true },
+    typingIndicators: { type: Boolean, default: true },
+    onlineStatus: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
 
-const NotifSchema = new Schema({
-  pushEnabled:          { type: Boolean, default: true },
-  messageNotifications: { type: Boolean, default: true },
-  callNotifications:    { type: Boolean, default: true },
-  groupNotifications:   { type: Boolean, default: true },
-  soundEnabled:         { type: Boolean, default: true },
-  vibrationEnabled:     { type: Boolean, default: true },
-  showPreview:          { type: Boolean, default: true },
-}, { _id: false });
+const NotifSchema = new Schema(
+  {
+    pushEnabled: { type: Boolean, default: true },
+    messageNotifications: { type: Boolean, default: true },
+    callNotifications: { type: Boolean, default: true },
+    groupNotifications: { type: Boolean, default: true },
+    soundEnabled: { type: Boolean, default: true },
+    vibrationEnabled: { type: Boolean, default: true },
+    showPreview: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
 
 const UserSchema = new Schema<IUser>(
   {
-    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: false, default: undefined },
-    username: { type: String, required: true, unique: true, trim: true, minlength: 3, maxlength: 50 },
-    avatar:   { type: String, default: '' },
-    bio:      { type: String, default: '', maxlength: 300 },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 50,
+    },
+    avatar: { type: String, default: '' },
+    bio: { type: String, default: '', maxlength: 300 },
     isOnline: { type: Boolean, default: false },
     provider: { type: String, enum: ['local', 'google'], default: 'local' },
     googleId: { type: String, sparse: true },
-    isEmailVerified:      { type: Boolean, default: false },
-    passwordResetToken:   { type: String },
+    isEmailVerified: { type: Boolean, default: false },
+    passwordResetToken: { type: String },
     passwordResetExpires: { type: Number },
-    privacy:           { type: PrivacySchema, default: () => ({}) },
+    privacy: { type: PrivacySchema, default: () => ({}) },
     notificationPrefs: { type: NotifSchema, default: () => ({}) },
     blockedUsers: [{ type: Types.ObjectId, ref: 'User' }],
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // Indexes are already created by field definitions (email, username, googleId)

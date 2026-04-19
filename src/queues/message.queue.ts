@@ -102,7 +102,7 @@ messageQueue.process(async (job: Job<SaveMessageJobData>) => {
     // Queue conversation update (non-blocking)
     await conversationQueue.add({
       conversationId,
-      lastMessage: message._id,  // OK - FIX: Send message ID, not content!
+      lastMessage: message._id, // OK - FIX: Send message ID, not content!
       lastMessageAt: message.createdAt,
     });
 

@@ -26,8 +26,10 @@ export async function updateMe(req: Request, res: Response) {
   if (username) update.username = username;
   if (avatar !== undefined) update.avatar = avatar;
   if (bio !== undefined) update.bio = bio;
-  const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true })
-    .select('-password -passwordResetToken -passwordResetExpires');
+  const user = await User.findByIdAndUpdate(userId, update, {
+    new: true,
+    runValidators: true,
+  }).select('-password -passwordResetToken -passwordResetExpires');
   if (!user) throw new AppError('User not found', HTTP.NOT_FOUND);
   res.json({ success: true, data: user });
 }
@@ -46,7 +48,9 @@ export async function updatePrivacy(req: Request, res: Response) {
   for (const [k, v] of Object.entries(parsed)) {
     if (v !== undefined) updateFields[`privacy.${k}`] = v;
   }
-  const user = await User.findByIdAndUpdate(req.user!.userId, updateFields, { new: true }).select('privacy').lean();
+  const user = await User.findByIdAndUpdate(req.user!.userId, updateFields, { new: true })
+    .select('privacy')
+    .lean();
   if (!user) throw new AppError('User not found', HTTP.NOT_FOUND);
   res.json({ success: true, data: user.privacy });
 }
@@ -65,14 +69,19 @@ export async function updateNotificationPrefs(req: Request, res: Response) {
   for (const [k, v] of Object.entries(parsed)) {
     if (v !== undefined) updateFields[`notificationPrefs.${k}`] = v;
   }
-  const user = await User.findByIdAndUpdate(req.user!.userId, updateFields, { new: true }).select('notificationPrefs').lean();
+  const user = await User.findByIdAndUpdate(req.user!.userId, updateFields, { new: true })
+    .select('notificationPrefs')
+    .lean();
   if (!user) throw new AppError('User not found', HTTP.NOT_FOUND);
   res.json({ success: true, data: user.notificationPrefs });
 }
 
 // GET /api/users/me/blocked
 export async function getBlockedUsers(req: Request, res: Response) {
-  const user = await User.findById(req.user!.userId).select('blockedUsers').populate('blockedUsers', '_id username avatar email').lean();
+  const user = await User.findById(req.user!.userId)
+    .select('blockedUsers')
+    .populate('blockedUsers', '_id username avatar email')
+    .lean();
   if (!user) throw new AppError('User not found', HTTP.NOT_FOUND);
   res.json({ success: true, data: user.blockedUsers });
 }

@@ -1,7 +1,7 @@
 /**
  * Database Seed Script
  * Creates initial users, conversations, and messages for testing
- * 
+ *
  * Usage: npm run seed
  */
 
@@ -81,7 +81,7 @@ async function seed() {
 
     // Create conversations
     logger.info('Creating conversations...');
-    
+
     // Direct conversation: Alice <-> Bob
     const conv1 = await Conversation.create({
       type: 'direct',
@@ -109,14 +109,14 @@ async function seed() {
     const conv4 = await Conversation.create({
       type: 'group',
       name: 'All Hands',
-      participants: users.map(u => u._id),
+      participants: users.map((u) => u._id),
       createdBy: users[0]._id,
     });
     logger.info(`  OK - Created group: All Hands`);
 
     // Create messages
     logger.info('Creating messages...');
-    
+
     // Messages in Alice <-> Bob conversation
     const messages1 = [
       {
@@ -130,7 +130,7 @@ async function seed() {
       {
         conversationId: conv1._id,
         senderId: users[1]._id,
-        content: 'Hi Alice! I\'m doing great, thanks for asking!',
+        content: "Hi Alice! I'm doing great, thanks for asking!",
         type: 'text' as const,
         createdAt: new Date(Date.now() - 240000), // 4 min ago
         readBy: [users[0]._id],
@@ -150,9 +150,7 @@ async function seed() {
         type: 'text' as const,
         createdAt: new Date(Date.now() - 120000), // 2 min ago
         readBy: [users[0]._id],
-        reactions: [
-          { userId: users[0]._id, emoji: '👍', username: 'Alice Johnson' },
-        ],
+        reactions: [{ userId: users[0]._id, emoji: '👍', username: 'Alice Johnson' }],
       },
       {
         conversationId: conv1._id,
@@ -197,7 +195,7 @@ async function seed() {
       {
         conversationId: conv3._id,
         senderId: users[0]._id,
-        content: 'Got it! I\'ll be there',
+        content: "Got it! I'll be there",
         type: 'text' as const,
         createdAt: new Date(Date.now() - 7140000),
         readBy: [users[1]._id],
@@ -244,7 +242,7 @@ async function seed() {
     logger.info(`  - Conversations: 4 (2 direct, 2 groups)`);
     logger.info(`  - Messages: ${allMessages.length}`);
     logger.info('Test Credentials:');
-    testUsers.forEach(u => {
+    testUsers.forEach((u) => {
       logger.info(`  - ${u.email} / ${u.password}`);
     });
 

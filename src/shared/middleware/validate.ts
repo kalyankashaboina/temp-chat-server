@@ -1,9 +1,9 @@
 /**
  * Zod Validation Middleware for Express
- * 
+ *
  * Provides defense-in-depth validation at the route level
  * before requests reach controllers/services.
- * 
+ *
  * Usage:
  *   router.post('/register', validate(registerSchema), authController.register);
  *   router.post('/messages', validate(createMessageSchema, 'body'), messageController.create);
@@ -20,19 +20,19 @@ type ValidatableSchema = AnyZodObject | ZodEffects<AnyZodObject>;
 
 /**
  * Creates Express middleware that validates request data against a Zod schema
- * 
+ *
  * @param schema - Zod schema to validate against (can be ZodObject or ZodEffects)
  * @param source - Which part of the request to validate ('body', 'query', or 'params')
  * @returns Express middleware function
- * 
+ *
  * @example
  * // Validate request body
  * router.post('/register', validate(registerSchema), controller.register);
- * 
+ *
  * @example
  * // Validate query parameters
  * router.get('/users', validate(listUsersSchema, 'query'), controller.list);
- * 
+ *
  * @example
  * // Validate route params
  * router.get('/users/:id', validate(userIdSchema, 'params'), controller.getById);
@@ -54,7 +54,7 @@ export function validate(schema: ValidatableSchema, source: ValidationSource = '
     } catch (error) {
       if ((error as any).name === 'ZodError') {
         const zodError = error as ZodError;
-        
+
         // Format Zod errors for client consumption
         const formattedErrors = zodError.errors.map((err) => ({
           field: err.path.join('.'),
@@ -72,7 +72,7 @@ export function validate(schema: ValidatableSchema, source: ValidationSource = '
         // Return 400 Bad Request with detailed error info
         return next(
           new AppError(
-            `Validation failed: ${formattedErrors.map(e => e.message).join(', ')}`,
+            `Validation failed: ${formattedErrors.map((e) => e.message).join(', ')}`,
             400
           )
         );
@@ -86,7 +86,7 @@ export function validate(schema: ValidatableSchema, source: ValidationSource = '
 
 /**
  * Validates multiple sources in a single middleware
- * 
+ *
  * @example
  * router.post(
  *   '/messages/:conversationId',
@@ -137,7 +137,7 @@ export function validateMultiple(schemas: Partial<Record<ValidationSource, Valid
 
         return next(
           new AppError(
-            `Validation failed: ${errors.map(e => `${e.source}.${e.field}: ${e.message}`).join(', ')}`,
+            `Validation failed: ${errors.map((e) => `${e.source}.${e.field}: ${e.message}`).join(', ')}`,
             400
           )
         );
@@ -152,10 +152,10 @@ export function validateMultiple(schemas: Partial<Record<ValidationSource, Valid
 
 /**
  * Validates file upload constraints
- * 
+ *
  * @param options - Upload validation options
  * @returns Express middleware function
- * 
+ *
  * @example
  * router.post(
  *   '/upload',
@@ -183,12 +183,7 @@ export function validateFileUpload(options: {
 
     // Validate file size
     if (maxSize && file.size > maxSize) {
-      return next(
-        new AppError(
-          `File size exceeds maximum allowed size of ${maxSize} bytes`,
-          400
-        )
-      );
+      return next(new AppError(`File size exceeds maximum allowed size of ${maxSize} bytes`, 400));
     }
 
     // Validate file type
@@ -226,7 +221,7 @@ export function formatZodError(error: ZodError): {
   }));
 
   return {
-    message: `Validation failed: ${errors.map(e => e.message).join(', ')}`,
+    message: `Validation failed: ${errors.map((e) => e.message).join(', ')}`,
     errors,
   };
 }

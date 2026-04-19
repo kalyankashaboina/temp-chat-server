@@ -5,7 +5,9 @@ export interface IConversation extends Document {
   type: 'direct' | 'group';
 
   name?: string;
+  avatar?: string;
   createdBy?: Types.ObjectId;
+  admins?: Types.ObjectId[];
 
   participants: Types.ObjectId[];
   lastMessage?: Types.ObjectId;
@@ -13,6 +15,11 @@ export interface IConversation extends Document {
     userId: Types.ObjectId;
     count: number;
   }[];
+
+  // Mute/Archive per user
+  mutedBy?: Types.ObjectId[];
+  archivedBy?: Types.ObjectId[];
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,11 +44,23 @@ const ConversationSchema = new Schema<IConversation>(
       trim: true,
     },
 
+    avatar: {
+      type: String,
+    },
+
     // 👇 ADD
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+
+    admins: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+
     /**
      * Pointer to latest message
      * Used for sidebar preview
@@ -67,10 +86,30 @@ const ConversationSchema = new Schema<IConversation>(
         },
       },
     ],
+
+    /**
+     * Users who muted this conversation
+     */
+    mutedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+
+    /**
+     * Users who archived this conversation
+     */
+    archivedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true, // 👈 you NEED updatedAt
-  },
+  }
 );
 
 /**

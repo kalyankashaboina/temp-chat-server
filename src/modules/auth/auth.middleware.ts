@@ -12,7 +12,7 @@ interface JwtPayload {
 
 // Augment Express Request so req.user is available everywhere
 declare global {
-   
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: {
@@ -49,7 +49,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     const user = await User.findById(payload.userId).select(
-      '-password -passwordResetToken -passwordResetExpires',
+      '-password -passwordResetToken -passwordResetExpires'
     );
 
     if (!user) {

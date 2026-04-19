@@ -26,9 +26,7 @@ export function toObjectIds(ids: string[]): Types.ObjectId[] {
  * Removes undefined keys from an object (safe to spread into Mongoose updates).
  */
 export function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined),
-  ) as Partial<T>;
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
 
 /**
@@ -68,7 +66,11 @@ export function clamp(value: number, min: number, max: number): number {
  * Uniqueness must still be verified in the DB by the caller.
  */
 export function deriveUsername(base: string): string {
-  const clean = base.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30) || 'user';
+  const clean =
+    base
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .slice(0, 30) || 'user';
   const suffix = Math.floor(Math.random() * 9000) + 1000;
   return `${clean}_${suffix}`;
 }

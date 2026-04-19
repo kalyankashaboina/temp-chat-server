@@ -8,7 +8,7 @@ export function errorHandler(
   err: Error,
   req: Request,
   res: Response,
-  _next: NextFunction,
+  _next: NextFunction
 ): Response {
   logger.error(`[${req.method}] ${req.originalUrl}`, {
     message: err.message,

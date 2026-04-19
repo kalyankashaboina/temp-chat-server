@@ -26,7 +26,7 @@ const SessionSchema = new Schema<ISession>(
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
-  },
+  }
 );
 
 export const Session = model<ISession>('Session', SessionSchema);

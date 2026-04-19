@@ -1,84 +1,82 @@
-# 🚀 Relay Chat Backend
+# Relay Chat - Backend API
 
-Real-time chat backend with WebSocket support, Redis caching, and async message queues.
+Real-time messaging platform backend with WebRTC, message search, and group management.
 
-## 🎯 Quick Start
-
-### Auto-Setup (Recommended)
+## 🚀 Quick Start
 
 ```bash
-chmod +x dev.sh
-./dev.sh
-```
-
-### Manual Setup
-
-```bash
-# 1. Start Docker services
-docker-compose -f docker-compose.dev.yml up -d
-
-# 2. Install dependencies
+# Install dependencies
 npm install
 
-# 3. Run development server
+# Set up environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run development server
 npm run dev
+
+# Server starts on http://localhost:4000
 ```
 
-## 📦 Prerequisites
+## 📋 Prerequisites
 
-- Node.js 20+
-- Docker & Docker Compose
+- Node.js 20.x+
+- MongoDB 7.x
+- Redis 7.x
 
-## 🗄️ Seed Test Data
+## ⚙️ Environment Variables
 
-```bash
-npm run seed
-```
-
-**Test Users:** alice@test.com, bob@test.com (password123)
-
-## 🌐 Environment (.env)
-
-```bash
+```env
 NODE_ENV=development
 PORT=4000
 MONGO_URI=mongodb://localhost:27017/relay-chat
 REDIS_HOST=localhost
 REDIS_PORT=6379
-JWT_SECRET=dev-secret
-FRONTEND_URL=http://localhost:5173
-LOG_LEVEL=debug
+JWT_SECRET=your-secret-key
+FRONTEND_URL=http://localhost:3000
 ```
 
-## 🔧 Scripts
+## 📝 Scripts
 
-```bash
-npm run dev          # Development server
-npm run build        # Production build
-npm run type-check   # TypeScript check
-npm run seed         # Seed database
-```
+- `npm run dev` - Development server
+- `npm run build` - Production build
+- `npm start` - Start production
+- `npm run lint` - Run ESLint
+- `npm run format` - Format with Prettier
+- `npm run type-check` - TypeScript check
 
 ## 🐳 Docker
 
 ```bash
-# Start MongoDB + Redis
-docker-compose -f docker-compose.dev.yml up -d
+# Development (Redis only)
+docker-compose -f docker-compose.dev.yml up
 
-# Stop
-docker-compose -f docker-compose.dev.yml down
+# Production (full stack from root)
+cd .. && docker-compose up
 ```
 
-## ✅ Features
+## 📡 Key Features
 
-- JWT Authentication
-- Real-time messaging (Socket.IO)
-- Redis caching
-- Async DB writes (Bull queues)
-- Idempotency layer
-- Pino logger
-- FREE WebRTC (STUN)
+✅ Real-time messaging with Socket.IO
+✅ JWT authentication  
+✅ WebRTC video/audio signaling
+✅ Full-text message search
+✅ Group management (add/remove members)
+✅ Mute/archive conversations
+✅ File uploads with Cloudinary
+✅ Link preview extraction
+✅ Typing indicators & read receipts
 
----
+## 🔌 API Endpoints
 
-**Backend for Relay Chat**
+See `test-new-features.js` or import `Relay_Chat_v1.1.0_New_Features.postman_collection.json`
+
+## 📊 CI/CD
+
+GitHub Actions configured:
+- **CI**: Lint, type-check, build, Docker
+- **CD**: Auto-deploy on push to main
+
+## 📄 License
+
+ISC

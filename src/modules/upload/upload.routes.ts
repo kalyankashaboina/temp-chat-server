@@ -1,14 +1,14 @@
-import { Router }  from 'express';
-import multer      from 'multer';
+import { Router } from 'express';
+import multer from 'multer';
 
-import { UPLOAD }  from '../../shared/constants';
+import { UPLOAD } from '../../shared/constants';
 import { requireAuth } from '../auth/auth.middleware';
 
-import { uploadFile }  from './upload.controller';
+import { uploadFile } from './upload.controller';
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: UPLOAD.MAX_SIZE_BYTES },
+  limits: { fileSize: UPLOAD.MAX_SIZE_BYTES },
   fileFilter: (_req, file, cb) => {
     if ((UPLOAD.ALLOWED_MIMES as readonly string[]).includes(file.mimetype)) {
       cb(null, true);

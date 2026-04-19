@@ -6,11 +6,7 @@ import { Message } from '../messages/message.model';
 import { createMessage } from '../messages/message.service';
 import { SOCKET_EVENTS, SOCKET } from '../../shared/constants';
 import { logger } from '../../shared/logger';
-import {
-  queueMessageSave,
-  queueConversationUpdate,
-  queueReadReceipts,
-} from '../../queues/message.queue';
+import { queueMessageSave, queueConversationUpdate, queueReadReceipts } from '../../queues/message.queue';
 import { SocketIdempotency } from '../../shared/middleware/idempotency';
 import { presenceCache, typingCache } from '../../config/redis';
 
@@ -55,16 +51,10 @@ export function registerSocketEvents(io: Server): void {
   io.on('connection', async (socket: AuthenticatedSocket) => {
     const userId = socket.data.userId;
 
-    if (!userId) {
-      socket.disconnect();
-      return;
-    }
+    if (!userId) { socket.disconnect(); return; }
 
     const user = await User.findById(userId).select('username').lean();
-    if (!user) {
-      socket.disconnect();
-      return;
-    }
+    if (!user) { socket.disconnect(); return; }
 
     const username = (user as any).username as string;
 
@@ -85,66 +75,63 @@ export function registerSocketEvents(io: Server): void {
     // ── message:send ───────────────────────────────────── ASYNC QUEUE
     // ✨ LOW LATENCY: Queue DB write, broadcast immediately, don't wait
 
-    socket.on(
-      SOCKET_EVENTS.MSG_SEND,
-      ({ conversationId, content, tempId, replyTo }: SendMessagePayload & { replyTo?: any }) => {
-        safeAsync(async () => {
-          if (!conversationId || !content?.trim()) {
-            socket.emit(SOCKET_EVENTS.MSG_FAILED, { tempId, reason: 'INVALID_PAYLOAD' });
-            return;
-          }
+    socket.on(SOCKET_EVENTS.MSG_SEND, ({ conversationId, content, tempId, replyTo }: SendMessagePayload & { replyTo?: any }) => {
+      safeAsync(async () => {
+        if (!conversationId || !content?.trim()) {
+          socket.emit(SOCKET_EVENTS.MSG_FAILED, { tempId, reason: 'INVALID_PAYLOAD' });
+          return;
+        }
 
-          // IDEMPOTENCY: Check for duplicates
-          if (tempId && (await SocketIdempotency.checkAndMark(tempId))) {
-            logger.warn(`Duplicate message blocked: ${tempId}`);
-            return; // Silently ignore duplicate
-          }
+        // IDEMPOTENCY: Check for duplicates
+        if (tempId && await SocketIdempotency.checkAndMark(tempId)) {
+          logger.warn(`Duplicate message blocked: ${tempId}`);
+          return; // Silently ignore duplicate
+        }
 
-          await assertConversationMember(conversationId, userId);
+        await assertConversationMember(conversationId, userId);
 
-          // ✨ CRITICAL: Queue DB write (NON-BLOCKING)
-          await queueMessageSave({
-            conversationId,
-            senderId: userId,
-            content: content.trim(),
-            type: 'text',
-            tempId: tempId || `temp-${Date.now()}-${Math.random()}`,
-            replyTo,
-          });
-
-          // ✨ INSTANT BROADCAST: Don't wait for DB save
-          const msgData = {
-            id: tempId, // Use tempId temporarily
-            tempId,
-            conversationId,
-            senderId: userId,
-            content: content.trim(),
-            createdAt: new Date().toISOString(),
-            replyTo: replyTo ?? null,
-            sender: { _id: userId, username },
-            status: 'sent',
-          };
-
-          // Broadcast to room immediately
-          io.to(conversationId).emit(SOCKET_EVENTS.MSG_NEW, msgData);
-
-          // ACK to sender
-          socket.emit(SOCKET_EVENTS.MSG_SENT, {
-            tempId,
-            messageId: tempId, // Real ID will be updated by queue processor
-            timestamp: msgData.createdAt,
-          });
-
-          // Mark as delivered to other participants
-          io.to(conversationId).except(socket.id).emit(SOCKET_EVENTS.MSG_DELIVERED, {
-            messageId: tempId,
-            conversationId,
-          });
-
-          logger.info(`OK - Message queued for async save: ${tempId}`);
+        // ✨ CRITICAL: Queue DB write (NON-BLOCKING)
+        await queueMessageSave({
+          conversationId,
+          senderId: userId,
+          content: content.trim(),
+          type: 'text',
+          tempId: tempId || `temp-${Date.now()}-${Math.random()}`,
+          replyTo,
         });
-      }
-    );
+
+        // ✨ INSTANT BROADCAST: Don't wait for DB save
+        const msgData = {
+          id: tempId, // Use tempId temporarily
+          tempId,
+          conversationId,
+          senderId: userId,
+          content: content.trim(),
+          createdAt: new Date().toISOString(),
+          replyTo: replyTo ?? null,
+          sender: { _id: userId, username },
+          status: 'sent',
+        };
+
+        // Broadcast to room immediately
+        io.to(conversationId).emit(SOCKET_EVENTS.MSG_NEW, msgData);
+
+        // ACK to sender
+        socket.emit(SOCKET_EVENTS.MSG_SENT, {
+          tempId,
+          messageId: tempId, // Real ID will be updated by queue processor
+          timestamp: msgData.createdAt,
+        });
+
+        // Mark as delivered to other participants
+        io.to(conversationId).except(socket.id).emit(SOCKET_EVENTS.MSG_DELIVERED, {
+          messageId: tempId,
+          conversationId,
+        });
+
+        logger.info(`OK - Message queued for async save: ${tempId}`);
+      });
+    });
 
     // ── message:delete ────────────────────────────────────────────────
 
@@ -172,112 +159,87 @@ export function registerSocketEvents(io: Server): void {
 
     // ── message:edit ──────────────────────────────────────────────────
 
-    socket.on(
-      SOCKET_EVENTS.MSG_EDIT,
-      async ({ messageId, content }: { messageId: string; content: string }) => {
-        safeAsync(async () => {
-          if (!content?.trim()) return;
+    socket.on(SOCKET_EVENTS.MSG_EDIT, async ({ messageId, content }: { messageId: string; content: string }) => {
+      safeAsync(async () => {
+        if (!content?.trim()) return;
 
-          const msg = await Message.findOne({
-            _id: messageId,
-            senderId: userId,
-            isDeleted: false,
-          });
-          if (!msg) return;
-
-          await assertConversationMember(msg.conversationId.toString(), userId);
-
-          msg.content = content.trim();
-          msg.isEdited = true;
-          msg.editedAt = new Date();
-          await msg.save();
-
-          io.to(msg.conversationId.toString()).emit(SOCKET_EVENTS.MSG_EDITED, {
-            messageId,
-            content: msg.content,
-            conversationId: msg.conversationId.toString(),
-            editedAt: msg.editedAt.toISOString(),
-          });
+        const msg = await Message.findOne({
+          _id: messageId,
+          senderId: userId,
+          isDeleted: false,
         });
-      }
-    );
+        if (!msg) return;
+
+        await assertConversationMember(msg.conversationId.toString(), userId);
+
+        msg.content = content.trim();
+        msg.isEdited = true;
+        msg.editedAt = new Date();
+        await msg.save();
+
+        io.to(msg.conversationId.toString()).emit(SOCKET_EVENTS.MSG_EDITED, {
+          messageId,
+          content: msg.content,
+          conversationId: msg.conversationId.toString(),
+          editedAt: msg.editedAt.toISOString(),
+        });
+      });
+    });
 
     // ── message:react ─────────────────────────────────────────────────
 
-    socket.on(
-      SOCKET_EVENTS.MSG_REACT,
-      async ({
-        messageId,
-        emoji,
-        conversationId,
-      }: {
-        messageId: string;
-        emoji: string;
-        conversationId: string;
-      }) => {
-        safeAsync(async () => {
-          await assertConversationMember(conversationId, userId);
+    socket.on(SOCKET_EVENTS.MSG_REACT, async ({ messageId, emoji, conversationId }: { messageId: string; emoji: string; conversationId: string }) => {
+      safeAsync(async () => {
+        await assertConversationMember(conversationId, userId);
 
-          const msg = await Message.findById(messageId);
-          if (!msg || msg.isDeleted) return;
+        const msg = await Message.findById(messageId);
+        if (!msg || msg.isDeleted) return;
 
-          if (!msg.reactions) (msg as any).reactions = [];
+        if (!msg.reactions) (msg as any).reactions = [];
 
-          // Prevent duplicate reaction from same user+emoji
-          const exists = (msg.reactions as any[]).some(
-            (r: any) => r.userId?.toString() === userId && r.emoji === emoji
-          );
-          if (!exists) {
-            (msg.reactions as any[]).push({ userId, emoji, username });
-            await msg.save();
-          }
+        // Prevent duplicate reaction from same user+emoji
+        const exists = (msg.reactions as any[]).some(
+          (r: any) => r.userId?.toString() === userId && r.emoji === emoji,
+        );
+        if (!exists) {
+          (msg.reactions as any[]).push({ userId, emoji, username });
+          await msg.save();
+        }
 
-          io.to(conversationId).emit(SOCKET_EVENTS.REACTION_ADDED, {
-            messageId,
-            conversationId,
-            emoji,
-            userId,
-            username,
-          });
+        io.to(conversationId).emit(SOCKET_EVENTS.REACTION_ADDED, {
+          messageId,
+          conversationId,
+          emoji,
+          userId,
+          username,
         });
-      }
-    );
+      });
+    });
 
     // ── message:unreact ───────────────────────────────────────────────
 
-    socket.on(
-      SOCKET_EVENTS.MSG_UNREACT,
-      async ({
-        messageId,
-        emoji,
-        conversationId,
-      }: {
-        messageId: string;
-        emoji: string;
-        conversationId: string;
-      }) => {
-        safeAsync(async () => {
-          await assertConversationMember(conversationId, userId);
+    socket.on(SOCKET_EVENTS.MSG_UNREACT, async ({ messageId, emoji, conversationId }: { messageId: string; emoji: string; conversationId: string }) => {
+      safeAsync(async () => {
+        await assertConversationMember(conversationId, userId);
 
-          const msg = await Message.findById(messageId);
-          if (!msg) return;
+        const msg = await Message.findById(messageId);
+        if (!msg) return;
 
-          if (msg.reactions) {
-            (msg as any).reactions = (msg.reactions as any[]).filter(
-              (r: any) => !(r.userId?.toString() === userId && r.emoji === emoji)
-            );
-            await msg.save();
-          }
+        if (msg.reactions) {
+          (msg as any).reactions = (msg.reactions as any[]).filter(
+            (r: any) => !(r.userId?.toString() === userId && r.emoji === emoji),
+          );
+          await msg.save();
+        }
 
-          io.to(conversationId).emit(SOCKET_EVENTS.REACTION_REMOVED, {
-            messageId,
-            conversationId,
-            emoji,
-            userId,
-          });
+        io.to(conversationId).emit(SOCKET_EVENTS.REACTION_REMOVED, {
+          messageId,
+          conversationId,
+          emoji,
+          userId,
         });
-      }
-    );
+      });
+    });
 
     // ── conversation:read ────────────────────────────────── ASYNC QUEUE
     // ✨ LOW LATENCY: Queue read receipt processing, broadcast immediately
@@ -319,17 +281,13 @@ export function registerSocketEvents(io: Server): void {
     socket.on(SOCKET_EVENTS.TYPING_START, ({ conversationId }: TypingPayload) => {
       safeAsync(async () => {
         await assertConversationMember(conversationId, userId);
-        socket
-          .to(conversationId)
-          .emit(SOCKET_EVENTS.TYPING_START, { conversationId, userName: username });
+        socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_START, { conversationId, userName: username });
 
         // Auto-stop after 8s (handles tab-close without typing:stop)
         const key = `${userId}:${conversationId}`;
         if (typingTimeouts.has(key)) clearTimeout(typingTimeouts.get(key)!);
         const timer = setTimeout(() => {
-          socket
-            .to(conversationId)
-            .emit(SOCKET_EVENTS.TYPING_STOP, { conversationId, userName: username });
+          socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_STOP, { conversationId, userName: username });
           typingTimeouts.delete(key);
         }, SOCKET.TYPING_TIMEOUT_MS);
         typingTimeouts.set(key, timer);
@@ -344,9 +302,7 @@ export function registerSocketEvents(io: Server): void {
           clearTimeout(typingTimeouts.get(key)!);
           typingTimeouts.delete(key);
         }
-        socket
-          .to(conversationId)
-          .emit(SOCKET_EVENTS.TYPING_STOP, { conversationId, userName: username });
+        socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_STOP, { conversationId, userName: username });
       });
     });
 
@@ -377,45 +333,6 @@ export function registerSocketEvents(io: Server): void {
       activeCalls.delete(toUserId);
       io.to(toUserId).emit(SOCKET_EVENTS.CALL_ENDED, { fromUserId: userId });
     });
-
-    // ── webrtc:offer ──────────────────────────────────────────────────────
-    // Send SDP offer to peer for WebRTC connection establishment
-    socket.on(
-      SOCKET_EVENTS.WEBRTC_OFFER,
-      ({ toUserId, offer }: { toUserId: string; offer: RTCSessionDescriptionInit }) => {
-        logger.info('[WEBRTC] Sending offer', { from: userId, to: toUserId });
-        io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_OFFER, {
-          fromUserId: userId,
-          offer,
-        });
-      }
-    );
-
-    // ── webrtc:answer ─────────────────────────────────────────────────────
-    // Send SDP answer to peer to complete WebRTC handshake
-    socket.on(
-      SOCKET_EVENTS.WEBRTC_ANSWER,
-      ({ toUserId, answer }: { toUserId: string; answer: RTCSessionDescriptionInit }) => {
-        logger.info('[WEBRTC] Sending answer', { from: userId, to: toUserId });
-        io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ANSWER, {
-          fromUserId: userId,
-          answer,
-        });
-      }
-    );
-
-    // ── webrtc:ice ────────────────────────────────────────────────────────
-    // Exchange ICE candidates for NAT traversal
-    socket.on(
-      SOCKET_EVENTS.WEBRTC_ICE,
-      ({ toUserId, candidate }: { toUserId: string; candidate: RTCIceCandidateInit }) => {
-        logger.info('[WEBRTC] Sending ICE candidate', { from: userId, to: toUserId });
-        io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ICE, {
-          fromUserId: userId,
-          candidate,
-        });
-      }
-    );
 
     // ── disconnect ────────────────────────────────────────────────────
 

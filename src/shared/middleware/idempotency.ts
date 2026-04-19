@@ -19,8 +19,8 @@ export const idempotency = () => {
 
     // Validate key format (should be UUID)
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
-      return res.status(400).json({ 
-        error: 'Invalid idempotency key format. Must be UUID.' 
+      return res.status(400).json({
+        error: 'Invalid idempotency key format. Must be UUID.',
       });
     }
 
@@ -46,11 +46,9 @@ export const idempotency = () => {
           body: body,
         };
 
-        redisClient.setex(
-          cacheKey,
-          IDEMPOTENCY_TTL,
-          JSON.stringify(responseData)
-        ).catch((err: Error) => logger.error('Failed to cache idempotent response:', err));
+        redisClient
+          .setex(cacheKey, IDEMPOTENCY_TTL, JSON.stringify(responseData))
+          .catch((err: Error) => logger.error('Failed to cache idempotent response:', err));
 
         return originalJson(body);
       };
@@ -75,7 +73,7 @@ export class SocketIdempotency {
     try {
       const key = `message:processed:${messageId}`;
       const exists = await redisClient.exists(key);
-      
+
       if (exists) {
         logger.warn(`Duplicate message detected: ${messageId}`);
         return true;
@@ -107,10 +105,10 @@ export class SocketIdempotency {
   static async checkAndMark(messageId: string): Promise<boolean> {
     try {
       const key = `message:processed:${messageId}`;
-      
+
       // SET NX (set if not exists) with expiry
       const result = await redisClient.set(key, '1', 'EX', IDEMPOTENCY_TTL, 'NX');
-      
+
       // If result is null, key already existed (duplicate)
       if (result === null) {
         logger.warn(`Duplicate message blocked: ${messageId}`);
@@ -138,10 +136,10 @@ export class RateLimiter {
   static async isLimited(key: string, limit: number, windowSeconds: number): Promise<boolean> {
     try {
       const redisKey = `ratelimit:${key}`;
-      
+
       // Increment counter
       const current = await redisClient.incr(redisKey);
-      
+
       // Set expiry on first request
       if (current === 1) {
         await redisClient.expire(redisKey, windowSeconds);

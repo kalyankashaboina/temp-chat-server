@@ -1,0 +1,30 @@
+
+    // ── webrtc:offer ──────────────────────────────────────────────────────
+    // Send SDP offer to peer for WebRTC connection establishment
+    socket.on(SOCKET_EVENTS.WEBRTC_OFFER, ({ toUserId, offer }: { toUserId: string; offer: RTCSessionDescriptionInit }) => {
+      logger.info('[WEBRTC] Sending offer', { from: userId, to: toUserId });
+      io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_OFFER, { 
+        fromUserId: userId, 
+        offer 
+      });
+    });
+
+    // ── webrtc:answer ─────────────────────────────────────────────────────
+    // Send SDP answer to peer to complete WebRTC handshake
+    socket.on(SOCKET_EVENTS.WEBRTC_ANSWER, ({ toUserId, answer }: { toUserId: string; answer: RTCSessionDescriptionInit }) => {
+      logger.info('[WEBRTC] Sending answer', { from: userId, to: toUserId });
+      io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ANSWER, { 
+        fromUserId: userId, 
+        answer 
+      });
+    });
+
+    // ── webrtc:ice ────────────────────────────────────────────────────────
+    // Exchange ICE candidates for NAT traversal
+    socket.on(SOCKET_EVENTS.WEBRTC_ICE, ({ toUserId, candidate }: { toUserId: string; candidate: RTCIceCandidateInit }) => {
+      logger.info('[WEBRTC] Sending ICE candidate', { from: userId, to: toUserId });
+      io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ICE, { 
+        fromUserId: userId, 
+        candidate 
+      });
+    });

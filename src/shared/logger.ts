@@ -12,16 +12,14 @@ const devFormat = printf(({ level, message, timestamp: ts, stack, ...meta }) => 
 
 const transports: winston.transport[] = [
   new winston.transports.Console({
-    format: isProduction
-      ? combine(timestamp(), json())
-      : combine(colorize(), devFormat),
+    format: isProduction ? combine(timestamp(), json()) : combine(colorize(), devFormat),
   }),
 ];
 
 if (!isProduction) {
   transports.push(
     new winston.transports.File({ filename: 'logs/app.log' }),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' })
   );
 }
 

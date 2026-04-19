@@ -1,3 +1,12 @@
 node_modules
 dist
+build
+coverage
+*.min.js
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
 .env
+.env.local
+.env.*.local
+*.log

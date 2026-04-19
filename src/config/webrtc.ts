@@ -1,10 +1,10 @@
 /**
  * WebRTC Configuration - FREE STUN Servers
- * 
+ *
  * OK - 100% FREE - No TURN servers needed for most connections
  * OK - Works for 80-90% of users (direct peer-to-peer)
  * OK - Google's public STUN servers (free forever)
- * 
+ *
  * Why this works:
  * - STUN helps discover public IP addresses
  * - Most users can connect directly (peer-to-peer)
@@ -20,19 +20,19 @@ export const webrtcConfig = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    
+
     // Additional reliable free STUN servers
     { urls: 'stun:stun.stunprotocol.org:3478' },
     { urls: 'stun:stun.voipbuster.com' },
     { urls: 'stun:stun.voipstunt.com' },
   ],
-  
+
   // Optimization for render.com free tier
   iceCandidatePoolSize: 10,
-  
+
   // Connection constraints
   iceTransportPolicy: 'all', // Try all methods
-  
+
   // Performance settings
   bundlePolicy: 'max-bundle',
   rtcpMuxPolicy: 'require',

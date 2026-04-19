@@ -14,30 +14,28 @@ interface ReplyToInput {
 
 interface CreateMessageData {
   conversationId: Types.ObjectId;
-  senderId:       Types.ObjectId;
-  content:        string;
-  type:           string;
-  attachments:    Array<{
-    name: string; mimeType: string; size: number; url: string;
+  senderId: Types.ObjectId;
+  content: string;
+  type: string;
+  attachments: Array<{
+    name: string;
+    mimeType: string;
+    size: number;
+    url: string;
     type: 'image' | 'video' | 'audio' | 'document' | 'text';
   }>;
   replyTo?: ReplyToInput;
 }
 
 export const messageRepository = {
-  findById: (id: string) =>
-    Message.findById(id),
+  findById: (id: string) => Message.findById(id),
 
   findOwnedById: (id: string, senderId: string) =>
     Message.findOne({ _id: id, senderId, isDeleted: false }),
 
   create: (data: CreateMessageData) => Message.create(data),
 
-  paginated: (
-    conversationId: Types.ObjectId,
-    cursor: Types.ObjectId | null,
-    limit: number,
-  ) => {
+  paginated: (conversationId: Types.ObjectId, cursor: Types.ObjectId | null, limit: number) => {
     const query: Record<string, unknown> = { conversationId };
     if (cursor) query._id = { $lt: cursor };
     return Message.find(query)
@@ -51,46 +49,34 @@ export const messageRepository = {
     Message.find({
       conversationId,
       senderId: { $ne: excludeSenderId },
-      readBy:   { $nin: [excludeSenderId] },
+      readBy: { $nin: [excludeSenderId] },
     }).select('_id'),
 
   markManyRead: (ids: string[], userId: string) =>
-    Message.updateMany(
-      { _id: { $in: ids } },
-      { $addToSet: { readBy: userId } },
-    ),
+    Message.updateMany({ _id: { $in: ids } }, { $addToSet: { readBy: userId } }),
 
   softDelete: (id: string) =>
     Message.findByIdAndUpdate(id, {
       isDeleted: true,
       deletedAt: new Date(),
-      content:   '[Message deleted]',
+      content: '[Message deleted]',
     }),
 
   edit: (id: string, content: string) =>
-    Message.findByIdAndUpdate(
-      id,
-      { content, isEdited: true, editedAt: new Date() },
-      { new: true },
-    ),
+    Message.findByIdAndUpdate(id, { content, isEdited: true, editedAt: new Date() }, { new: true }),
 
-  addReaction: (
-    messageId: string,
-    userId: string,
-    username: string,
-    emoji: string,
-  ) =>
+  addReaction: (messageId: string, userId: string, username: string, emoji: string) =>
     Message.findByIdAndUpdate(
       messageId,
       { $addToSet: { reactions: { userId, username, emoji } } },
-      { new: true },
+      { new: true }
     ),
 
   removeReaction: (messageId: string, userId: string, emoji: string) =>
     Message.findByIdAndUpdate(
       messageId,
       { $pull: { reactions: { userId, emoji } } },
-      { new: true },
+      { new: true }
     ),
 
   // New: star/unstar
@@ -122,4 +108,14 @@ export const messageRepository = {
 
   deleteScheduled: (id: string, senderId: string) =>
     Message.findOneAndDelete({ _id: id, senderId, isScheduled: true }),
+
+  // Search messages with text index
+  searchMessages: (filter: any, limit: number, skip: number) =>
+    Message.find(filter)
+      .select('_id conversationId senderId content createdAt')
+      .populate('senderId', '_id username avatar')
+      .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .lean(),
 };

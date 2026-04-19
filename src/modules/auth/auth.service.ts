@@ -2,18 +2,18 @@
 // auth/auth.service.ts  — Business logic only.
 // DB access via authRepository. Schemas from shared/validators.
 // ─────────────────────────────────────────────────────────────────────────────
-import crypto  from 'crypto';
+import crypto from 'crypto';
 
-import bcrypt  from 'bcryptjs';
-import jwt     from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 
-import { env }            from '../../config/env';
-import { AppError }       from '../../shared/errors/AppError';
-import { logger }         from '../../shared/logger';
-import { emailService }   from '../../shared/services/email.service';
+import { env } from '../../config/env';
+import { AppError } from '../../shared/errors/AppError';
+import { logger } from '../../shared/logger';
+import { emailService } from '../../shared/services/email.service';
 import { deriveUsername } from '../../shared/utils';
-import { AUTH }           from '../../shared/constants';
+import { AUTH } from '../../shared/constants';
 import {
   registerSchema,
   loginSchema,
@@ -26,15 +26,13 @@ import {
   type GoogleAuthInput,
   type UpdateProfileInput,
 } from '../../shared/validators';
-import type { IUser }          from '../users/user.model';
+import type { IUser } from '../users/user.model';
 
 import { authRepository } from './repository/auth.repository';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const googleClient = env.GOOGLE_CLIENT_ID
-  ? new OAuth2Client(env.GOOGLE_CLIENT_ID)
-  : null;
+const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null;
 
 function signToken(userId: string): string {
   return jwt.sign({ userId }, env.JWT_SECRET, {
@@ -44,20 +42,20 @@ function signToken(userId: string): string {
 
 export function safeUser(user: IUser) {
   return {
-    id:              user._id.toString(),
-    email:           user.email,
-    name:            user.username,
-    avatar:          user.avatar ?? '',
-    bio:             user.bio   ?? '',
+    id: user._id.toString(),
+    email: user.email,
+    name: user.username,
+    avatar: user.avatar ?? '',
+    bio: user.bio ?? '',
     isEmailVerified: user.isEmailVerified,
-    provider:        user.provider,
+    provider: user.provider,
   };
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
 
 export async function register(raw: RegisterInput) {
-  const input = registerSchema.parse(raw);                 // throws ZodError if invalid
+  const input = registerSchema.parse(raw); // throws ZodError if invalid
 
   const existing = await authRepository.findByEmailOrUsername(input.email, input.username);
   if (existing) {
@@ -67,15 +65,16 @@ export async function register(raw: RegisterInput) {
   }
 
   const hashed = await bcrypt.hash(input.password, AUTH.BCRYPT_ROUNDS);
-  const user   = await authRepository.create({
-    username:        input.username,
-    email:           input.email,
-    password:        hashed,
-    provider:        'local',
+  const user = await authRepository.create({
+    username: input.username,
+    email: input.email,
+    password: hashed,
+    provider: 'local',
     isEmailVerified: false,
   });
 
-  emailService.sendWelcome(user.email, user.username)
+  emailService
+    .sendWelcome(user.email, user.username)
     .catch((e) => logger.warn('Welcome email failed', { error: e }));
 
   logger.info('User registered', { userId: user._id });
@@ -86,7 +85,7 @@ export async function register(raw: RegisterInput) {
 
 export async function login(raw: LoginInput) {
   const input = loginSchema.parse(raw);
-  const user  = await authRepository.findByEmail(input.email);
+  const user = await authRepository.findByEmail(input.email);
 
   if (!user) throw new AppError('Invalid email or password', 401);
 
@@ -122,8 +121,18 @@ export async function googleAuth(raw: GoogleAuthInput) {
     throw new AppError('Invalid Google token', 401);
   }
 
-  const { sub: googleId, email, name, picture, email_verified } = payload as {
-    sub: string; email?: string; name?: string; picture?: string; email_verified?: boolean;
+  const {
+    sub: googleId,
+    email,
+    name,
+    picture,
+    email_verified,
+  } = payload as {
+    sub: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+    email_verified?: boolean;
   };
 
   if (!email) throw new AppError('Google account has no email address', 400);
@@ -134,30 +143,29 @@ export async function googleAuth(raw: GoogleAuthInput) {
   if (user) {
     if (!user.googleId) {
       // Link Google to existing local account
-      if (!email_verified)
-        throw new AppError('Cannot link — Google email is not verified', 403);
+      if (!email_verified) throw new AppError('Cannot link — Google email is not verified', 403);
       await authRepository.linkGoogle(user._id.toString(), googleId, picture);
       user = (await authRepository.findByEmail(normalizedEmail))!;
     }
     // else: already linked — fall through to sign in
   } else {
     // New user via Google
-    const base     = (name ?? email.split('@')[0]) as string;
+    const base = (name ?? email.split('@')[0]) as string;
     const username = await _uniqueUsername(base);
-    user = await authRepository.create({
-      email:           normalizedEmail,
+    user = (await authRepository.create({
+      email: normalizedEmail,
       username,
-      avatar:          picture ?? '',
-      provider:        'google',
+      avatar: picture ?? '',
+      provider: 'google',
       googleId,
       isEmailVerified: !!email_verified,
-    }) as unknown as Awaited<ReturnType<typeof authRepository.findByEmail>>;
+    })) as unknown as Awaited<ReturnType<typeof authRepository.findByEmail>>;
     logger.info('New user via Google', { userId: (user as any)._id });
   }
 
   return {
     token: signToken((user as any)._id.toString()),
-    user:  safeUser(user as unknown as IUser),
+    user: safeUser(user as unknown as IUser),
   };
 }
 
@@ -165,15 +173,15 @@ export async function googleAuth(raw: GoogleAuthInput) {
 
 export async function forgotPassword(raw: { email: string }) {
   const { email } = forgotPasswordSchema.parse(raw);
-  const user      = await authRepository.findByEmail(email);
+  const user = await authRepository.findByEmail(email);
 
   if (!user || (user.provider === 'google' && !user.password)) return; // silent
 
-  const rawToken  = crypto.randomBytes(AUTH.RESET_TOKEN_BYTES).toString('hex');
-  const hashed    = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const rawToken = crypto.randomBytes(AUTH.RESET_TOKEN_BYTES).toString('hex');
+  const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
 
   await authRepository.updateById(user._id.toString(), {
-    passwordResetToken:   hashed,
+    passwordResetToken: hashed,
     passwordResetExpires: Date.now() + AUTH.RESET_TTL_MS,
   });
 
@@ -181,7 +189,8 @@ export async function forgotPassword(raw: { email: string }) {
     await emailService.sendPasswordReset(user.email, rawToken, user.username);
   } catch (err) {
     await authRepository.updateById(user._id.toString(), {
-      passwordResetToken: undefined, passwordResetExpires: undefined,
+      passwordResetToken: undefined,
+      passwordResetExpires: undefined,
     });
     logger.error('Reset email failed', { error: err });
     throw new AppError('Failed to send reset email. Try again later.', 500);
@@ -192,17 +201,17 @@ export async function forgotPassword(raw: { email: string }) {
 
 export async function resetPassword(raw: { token: string; password: string }) {
   const { token, password } = resetPasswordSchema.parse(raw);
-  const hashed              = crypto.createHash('sha256').update(token).digest('hex');
-  const user                = await authRepository.findByResetToken(hashed);
+  const hashed = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await authRepository.findByResetToken(hashed);
 
   if (!user) throw new AppError('Reset token is invalid or has expired', 400);
 
   const newHash = await bcrypt.hash(password, AUTH.BCRYPT_ROUNDS);
   await authRepository.updateById(user._id.toString(), {
-    password:             newHash,
-    passwordResetToken:   undefined,
+    password: newHash,
+    passwordResetToken: undefined,
     passwordResetExpires: undefined,
-    provider:             'local',
+    provider: 'local',
   });
 }
 
@@ -213,14 +222,13 @@ export async function updateProfile(userId: string, raw: UpdateProfileInput) {
 
   if (input.username) {
     const taken = await authRepository.findByEmailOrUsername('', input.username);
-    if (taken && taken._id.toString() !== userId)
-      throw new AppError('Username already taken', 409);
+    if (taken && taken._id.toString() !== userId) throw new AppError('Username already taken', 409);
   }
 
   const updates: Record<string, unknown> = {};
   if (input.username !== undefined) updates.username = input.username;
-  if (input.avatar   !== undefined) updates.avatar   = input.avatar;
-  if (input.bio      !== undefined) updates.bio      = input.bio;
+  if (input.avatar !== undefined) updates.avatar = input.avatar;
+  if (input.bio !== undefined) updates.bio = input.bio;
 
   const updated = await authRepository.updateById(userId, updates);
   if (!updated) throw new AppError('User not found', 404);
@@ -230,15 +238,18 @@ export async function updateProfile(userId: string, raw: UpdateProfileInput) {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 async function _uniqueUsername(base: string): Promise<string> {
-  const clean = base.toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 30) || 'user';
+  const clean =
+    base
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '_')
+      .slice(0, 30) || 'user';
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = attempt === 0 ? clean : deriveUsername(base);
-    const exists    = await authRepository.findByEmailOrUsername('', candidate);
+    const exists = await authRepository.findByEmailOrUsername('', candidate);
     if (!exists) return candidate;
   }
   return deriveUsername(base);
 }
-
 
 // ── Change password (authenticated) ──────────────────────────────────────────
 
@@ -246,6 +257,6 @@ export async function changePassword(userId: string, newPassword: string) {
   const { password: newPwd } = resetPasswordSchema.parse({ token: 'dummy', password: newPassword });
 
   const hashed = await bcrypt.hash(newPwd, AUTH.BCRYPT_ROUNDS);
-  const user   = await authRepository.updateById(userId, { password: hashed, provider: 'local' });
+  const user = await authRepository.updateById(userId, { password: hashed, provider: 'local' });
   if (!user) throw new AppError('User not found', 404);
 }

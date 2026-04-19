@@ -1,6 +1,6 @@
 /**
  * In-Memory MongoDB Server for Development/Testing
- * 
+ *
  * This script starts an in-memory MongoDB instance so we can
  * test the application without installing MongoDB locally.
  */
@@ -11,7 +11,7 @@ let mongoServer: MongoMemoryServer | null = null;
 
 export async function startInMemoryMongo(): Promise<string> {
   console.log('🔄 Starting in-memory MongoDB...');
-  
+
   mongoServer = await MongoMemoryServer.create({
     instance: {
       port: 27017, // Use default MongoDB port
@@ -24,7 +24,7 @@ export async function startInMemoryMongo(): Promise<string> {
 
   const uri = mongoServer.getUri();
   console.log('OK - In-memory MongoDB started at:', uri);
-  
+
   return uri;
 }
 

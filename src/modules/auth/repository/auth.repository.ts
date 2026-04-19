@@ -6,14 +6,12 @@ import type { IUser } from '../../../modules/users/user.model';
 import { User } from '../../../modules/users/user.model';
 
 export const authRepository = {
-  findByEmail: (email: string) =>
-    User.findOne({ email: email.toLowerCase() }).select('+password'),
+  findByEmail: (email: string) => User.findOne({ email: email.toLowerCase() }).select('+password'),
 
   findByEmailOrUsername: (email: string, username: string) =>
     User.findOne({ $or: [{ email: email.toLowerCase() }, { username }] }),
 
-  findByGoogleId: (googleId: string) =>
-    User.findOne({ googleId }),
+  findByGoogleId: (googleId: string) => User.findOne({ googleId }),
 
   findById: (id: string) =>
     User.findById(id).select('-password -passwordResetToken -passwordResetExpires'),
@@ -24,12 +22,12 @@ export const authRepository = {
       passwordResetExpires: { $gt: Date.now() },
     }),
 
-  create: (data: Partial<IUser>) =>
-    User.create(data),
+  create: (data: Partial<IUser>) => User.create(data),
 
   updateById: (id: string, updates: Partial<IUser>) =>
-    User.findByIdAndUpdate(id, updates, { new: true, runValidators: true })
-      .select('-password -passwordResetToken -passwordResetExpires'),
+    User.findByIdAndUpdate(id, updates, { new: true, runValidators: true }).select(
+      '-password -passwordResetToken -passwordResetExpires'
+    ),
 
   linkGoogle: (userId: string, googleId: string, avatar?: string) =>
     User.findByIdAndUpdate(
@@ -39,6 +37,6 @@ export const authRepository = {
         isEmailVerified: true,
         ...(avatar ? { avatar } : {}),
       },
-      { new: true },
+      { new: true }
     ).select('-password'),
 };

@@ -12,14 +12,14 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 // Pino logger instance
 const pinoLogger = pino({
   level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-  
+
   // Development: Pretty print WITHOUT colors/symbols for Windows
   // Production: JSON for log aggregation
   transport: isDevelopment
     ? {
         target: 'pino-pretty',
         options: {
-          colorize: false,  // Disable colors for Windows compatibility
+          colorize: false, // Disable colors for Windows compatibility
           translateTime: 'HH:MM:ss',
           ignore: 'pid,hostname',
           singleLine: false,
@@ -27,7 +27,7 @@ const pinoLogger = pino({
         },
       }
     : undefined,
-  
+
   // Timestamp
   timestamp: () => `,"time":"${new Date().toISOString()}"`,
 });

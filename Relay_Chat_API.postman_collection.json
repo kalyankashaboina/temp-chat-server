@@ -52,7 +52,7 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": "{{baseUrl}}/api/auth/register",
             "body": {
               "mode": "raw",
@@ -75,7 +75,7 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": "{{baseUrl}}/api/auth/login",
             "body": {
               "mode": "raw",
@@ -87,7 +87,7 @@
           "name": "Get Current User",
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/auth/me"
           }
         },
@@ -95,7 +95,7 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/auth/logout"
           }
         }
@@ -108,7 +108,7 @@
           "name": "Get All Users",
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/users?search=alice"
           }
         },
@@ -117,8 +117,8 @@
           "request": {
             "method": "PUT",
             "header": [
-              {"key": "Cookie", "value": "token={{authToken}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              { "key": "Cookie", "value": "token={{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "url": "{{baseUrl}}/api/users/me",
             "body": {
@@ -131,7 +131,7 @@
           "name": "Block User",
           "request": {
             "method": "POST",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/users/{{userId}}/block"
           }
         }
@@ -156,7 +156,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/conversations?page=1&limit=20"
           }
         },
@@ -165,8 +165,8 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Cookie", "value": "token={{authToken}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              { "key": "Cookie", "value": "token={{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "url": "{{baseUrl}}/api/conversations/direct",
             "body": {
@@ -180,8 +180,8 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Cookie", "value": "token={{authToken}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              { "key": "Cookie", "value": "token={{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "url": "{{baseUrl}}/api/conversations/group",
             "body": {
@@ -194,7 +194,7 @@
           "name": "Search Conversations",
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/conversations/search?q=test"
           }
         }
@@ -219,7 +219,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/conversations/{{conversationId}}/messages?page=1&limit=50"
           }
         },
@@ -227,7 +227,7 @@
           "name": "Get Pinned Messages",
           "request": {
             "method": "GET",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/conversations/{{conversationId}}/pinned"
           }
         },
@@ -235,7 +235,7 @@
           "name": "Star Message",
           "request": {
             "method": "PUT",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/messages/{{messageId}}/star"
           }
         },
@@ -243,7 +243,7 @@
           "name": "Unstar Message",
           "request": {
             "method": "DELETE",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/messages/{{messageId}}/star"
           }
         },
@@ -251,7 +251,7 @@
           "name": "Pin Message",
           "request": {
             "method": "PUT",
-            "header": [{"key": "Cookie", "value": "token={{authToken}}"}],
+            "header": [{ "key": "Cookie", "value": "token={{authToken}}" }],
             "url": "{{baseUrl}}/api/messages/{{messageId}}/pin"
           }
         },
@@ -260,8 +260,8 @@
           "request": {
             "method": "POST",
             "header": [
-              {"key": "Cookie", "value": "token={{authToken}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              { "key": "Cookie", "value": "token={{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "url": "{{baseUrl}}/api/messages/{{messageId}}/forward",
             "body": {
