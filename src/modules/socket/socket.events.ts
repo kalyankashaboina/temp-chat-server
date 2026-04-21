@@ -29,6 +29,16 @@ const onlineUsers = new Set<string>();
 const activeCalls = new Map<string, string>(); // userId → peerId
 const typingTimeouts = new Map<string, NodeJS.Timeout>(); // `${userId}:${convId}` → timeout
 
+// BUG FIX #4: Store io instance for access from queue processor
+let ioInstance: Server | null = null;
+
+export function getIO(): Server {
+  if (!ioInstance) {
+    throw new Error('Socket.IO not initialized');
+  }
+  return ioInstance;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 async function assertConversationMember(conversationId: string, userId: string): Promise<void> {
@@ -52,6 +62,9 @@ function safeAsync(fn: () => Promise<void>, onError?: (err: Error) => void): voi
 // ── Main event registration ───────────────────────────────────────────
 
 export function registerSocketEvents(io: Server): void {
+  // BUG FIX #4: Store io instance for queue processor access
+  ioInstance = io;
+
   io.on('connection', async (socket: AuthenticatedSocket) => {
     const userId = socket.data.userId;
 
@@ -90,7 +103,12 @@ export function registerSocketEvents(io: Server): void {
       ({ conversationId, content, tempId, replyTo }: SendMessagePayload & { replyTo?: any }) => {
         safeAsync(async () => {
           if (!conversationId || !content?.trim()) {
-            socket.emit(SOCKET_EVENTS.MSG_FAILED, { tempId, reason: 'INVALID_PAYLOAD' });
+            // BUG FIX #3: Include conversationId in failed event
+            socket.emit(SOCKET_EVENTS.MSG_FAILED, {
+              tempId,
+              conversationId,
+              reason: 'INVALID_PAYLOAD',
+            });
             return;
           }
 
@@ -128,11 +146,12 @@ export function registerSocketEvents(io: Server): void {
           // Broadcast to room immediately
           io.to(conversationId).emit(SOCKET_EVENTS.MSG_NEW, msgData);
 
-          // ACK to sender
+          // ACK to sender - BUG FIX #1: Add conversationId, use createdAt
           socket.emit(SOCKET_EVENTS.MSG_SENT, {
             tempId,
             messageId: tempId, // Real ID will be updated by queue processor
-            timestamp: msgData.createdAt,
+            conversationId, // Required for FE to find the right conversation
+            createdAt: msgData.createdAt, // Renamed from timestamp
           });
 
           // Mark as delivered to other participants

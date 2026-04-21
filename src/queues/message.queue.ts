@@ -2,6 +2,8 @@ import Bull, { Queue, Job } from 'bull';
 import { logger } from '../shared/utils/logger';
 import { Message } from '../modules/messages/message.model';
 import { Conversation } from '../modules/conversations/conversation.model';
+import { getIO } from '../modules/socket/socket.events'; // BUG FIX #4
+import { SOCKET_EVENTS } from '../shared/constants'; // BUG FIX #4
 
 // Queue configuration
 const REDIS_CONFIG = {
@@ -98,6 +100,21 @@ messageQueue.process(async (job: Job<SaveMessageJobData>) => {
     });
 
     logger.info('Message saved to DB', { messageId: message._id });
+
+    // BUG FIX #4: Emit message:confirmed with real ID
+    try {
+      const io = getIO();
+      io.to(conversationId).emit(SOCKET_EVENTS.MSG_CONFIRMED, {
+        tempId,
+        realId: message._id.toString(),
+        conversationId,
+        createdAt: message.createdAt,
+      });
+      logger.info('message:confirmed emitted', { tempId, realId: message._id });
+    } catch (error) {
+      logger.error('Failed to emit message:confirmed', error);
+      // Don't fail the job - message is already saved
+    }
 
     // Queue conversation update (non-blocking)
     await conversationQueue.add({

@@ -59,9 +59,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ==================================================
-      # 3. RENDER — TRIGGER REDEPLOY
-      # ==================================================
-      - name: Trigger Render deploy
-        run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      # Add your deployment steps here (e.g., deploy to Render, Railway, etc.)
+      # Example for Railway:
+      # - name: Deploy to Railway
+      #   run: |
+      #     npm install -g @railway/cli
+      #     railway up
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
