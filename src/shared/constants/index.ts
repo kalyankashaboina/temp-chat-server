@@ -79,6 +79,7 @@ export const SOCKET_EVENTS = {
   MSG_SEND: 'message:send',
   MSG_NEW: 'message:new',
   MSG_SENT: 'message:sent',
+  MSG_CONFIRMED: 'message:confirmed', // BUG FIX #4: Real ID from queue processor
   MSG_DELIVERED: 'message:delivered',
   MSG_READ: 'message:read',
   MSG_DELETE: 'message:delete',
