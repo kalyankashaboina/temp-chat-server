@@ -4,12 +4,13 @@ import { Message } from '../modules/messages/message.model';
 import { Conversation } from '../modules/conversations/conversation.model';
 import { getIO } from '../modules/socket/socket.events'; // BUG FIX #4
 import { SOCKET_EVENTS } from '../shared/constants'; // BUG FIX #4
+import { env } from '../config/env';
 
 // Queue configuration
 const REDIS_CONFIG = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: env.REDIS_HOST || 'localhost',
+  port:  env.REDIS_PORT,
+  password: env.REDIS_PASSWORD,
 };
 
 // Message processing queue

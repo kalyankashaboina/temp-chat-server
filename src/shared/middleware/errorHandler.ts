@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 
 import { AppError } from '../errors/AppError';
 import { logger } from '../logger';
+import { env } from '../../config/env';
 
 export function errorHandler(
   err: Error,
@@ -50,7 +51,7 @@ export function errorHandler(
   }
 
   // Unknown errors — don't leak internals in production
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = env.NODE_ENV === 'production';
   return res.status(500).json({
     success: false,
     message: isProd ? 'Internal server error' : err.message,

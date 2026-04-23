@@ -15,15 +15,9 @@ let server: http.Server;
 async function bootstrap() {
   logger.info(' Starting Relay Chat Server...');
 
-  // Use MongoDB stub if enabled
-  if (process.env.USE_MONGO_STUB === 'true') {
-    logger.warn('WARNING -  Using MongoDB stub - data will NOT persist!');
-    logger.warn('WARNING -  WARNING: Using MongoDB stub - data will NOT persist!');
-    logger.warn('WARNING -  This is for development/testing only');
-    await connectMongoStub();
-  } else {
+  
     await connectMongo();
-  }
+ 
 
   // Connect to Redis (non-blocking, app works without Redis)
   try {
@@ -48,11 +42,11 @@ async function bootstrap() {
   // 3️⃣ Start listening
   server.listen(env.PORT, () => {
     logger.info(` Server running on port ${env.PORT}`);
-    logger.info(` Frontend URL: ${env.FRONTEND_URL}`);
+    logger.info(` Frontend URL: ${env.ALLOWED_ORIGINS.split(',')[0].trim()}`);
   });
 
   // 4️⃣ Start performance monitoring
-  if (process.env.NODE_ENV !== 'production') {
+  if (env.NODE_ENV !== 'production') {
     monitorMemory();
   }
 

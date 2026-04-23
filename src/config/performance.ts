@@ -17,6 +17,7 @@
 import compression from 'compression';
 import { Express, Request, Response } from 'express';
 import mongoose from 'mongoose';
+import { env } from './env';
 
 /**
  * MongoDB Connection Pool Configuration
@@ -158,7 +159,7 @@ export const sessionConfig = {
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
   },
 };

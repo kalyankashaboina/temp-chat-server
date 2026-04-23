@@ -1,11 +1,12 @@
 import Redis from 'ioredis';
 import { logger } from '../shared/utils/logger';
+import { env } from './env';
 
 // Redis client for caching and general operations
 export const redisClient = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: env.REDIS_HOST || 'localhost',
+  port: env.REDIS_PORT,
+  password: env.REDIS_PASSWORD,
   maxRetriesPerRequest: 3,
   retryStrategy: (times) => {
     const delay = Math.min(times * 50, 2000);
@@ -16,16 +17,16 @@ export const redisClient = new Redis({
 
 // Redis client for pub/sub (separate connection required)
 export const redisPub = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: env.REDIS_HOST || 'localhost',
+  port: env.REDIS_PORT,
+  password: env.REDIS_PASSWORD,
   lazyConnect: true,
 });
 
 export const redisSub = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
+  host: env.REDIS_HOST || 'localhost',
+  port: env.REDIS_PORT,
+  password: env.REDIS_PASSWORD,
   lazyConnect: true,
 });
 

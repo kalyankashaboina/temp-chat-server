@@ -6,12 +6,13 @@
  */
 
 import pino from 'pino';
+import { env } from '../../config/env';
 
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const isDevelopment = env.NODE_ENV !== 'production';
 
 // Pino logger instance
 const pinoLogger = pino({
-  level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+  level: env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
 
   // Development: Pretty print WITHOUT colors/symbols for Windows
   // Production: JSON for log aggregation
