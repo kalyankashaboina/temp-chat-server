@@ -9,7 +9,7 @@ import { env } from '../config/env';
 // Queue configuration
 const REDIS_CONFIG = {
   host: env.REDIS_HOST || 'localhost',
-  port:  env.REDIS_PORT,
+  port: env.REDIS_PORT,
   password: env.REDIS_PASSWORD,
 };
 

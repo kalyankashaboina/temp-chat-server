@@ -4,7 +4,7 @@ dotenv.config();
 function requireEnv(name: string): string {
   const val = process.env[name];
   if (!val) {
-    console.error(`Missing required env var: ${name}`);
+    console.error(`❌ Missing required env var: ${name}`);
     process.exit(1);
   }
   return val;
@@ -17,7 +17,7 @@ function optionalEnv(name: string, fallback: string): string {
 function warnEnv(name: string): string {
   const val = process.env[name];
   if (!val) {
-    console.warn(`Env var ${name} is not set`);
+    console.warn(`⚠️ Env var ${name} is not set`);
     return '';
   }
   return val;
@@ -38,6 +38,7 @@ export const env = {
   JWT_REFRESH_SECRET: warnEnv('JWT_REFRESH_SECRET'),
   JWT_REFRESH_EXPIRES_IN: optionalEnv('JWT_REFRESH_EXPIRES_IN', '30d'),
 
+  FRONTEND_URL: optionalEnv('FRONTEND_URL', 'http://localhost:5173'),
   ALLOWED_ORIGINS: optionalEnv('ALLOWED_ORIGINS', 'http://localhost:5173'),
 
   MAX_FILE_SIZE: Number(process.env.MAX_FILE_SIZE) || 10485760,
@@ -54,6 +55,12 @@ export const env = {
   SMTP_USER: warnEnv('SMTP_USER'),
   SMTP_PASS: warnEnv('SMTP_PASS'),
   EMAIL_FROM: optionalEnv('EMAIL_FROM', 'noreply@relaychat.com'),
+
+  GOOGLE_CLIENT_ID: warnEnv('GOOGLE_CLIENT_ID'),
+
+  CLOUDINARY_CLOUD_NAME: warnEnv('CLOUDINARY_CLOUD_NAME'),
+  CLOUDINARY_API_KEY: warnEnv('CLOUDINARY_API_KEY'),
+  CLOUDINARY_API_SECRET: warnEnv('CLOUDINARY_API_SECRET'),
 
   STUN_SERVER: optionalEnv('STUN_SERVER', 'stun:stun.l.google.com:19302'),
   TURN_SERVER: warnEnv('TURN_SERVER'),

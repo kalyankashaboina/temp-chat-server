@@ -5,6 +5,7 @@
 ### 🔮 Planned Features
 
 **Progressive Web App (PWA) Enhancement**
+
 - Full Progressive Web App (PWA) support with native-like capabilities across iOS and Android, including offline access, installability, and performance optimizations.
 
 ---

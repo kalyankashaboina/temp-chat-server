@@ -116,6 +116,7 @@ src/
 ## 🔌 API Endpoints
 
 ### Authentication
+
 ```
 POST   /api/auth/register
 POST   /api/auth/login
@@ -124,6 +125,7 @@ GET    /api/auth/me
 ```
 
 ### Conversations
+
 ```
 GET    /api/conversations
 POST   /api/conversations
@@ -132,6 +134,7 @@ GET    /api/conversations/:id
 ```
 
 ### Messages
+
 ```
 GET    /api/messages/:conversationId
 POST   /api/messages
@@ -140,6 +143,7 @@ DELETE /api/messages/:id
 ```
 
 ### Users
+
 ```
 GET    /api/users
 GET    /api/users/:id
@@ -147,6 +151,7 @@ PUT    /api/users/profile
 ```
 
 ### Upload
+
 ```
 POST   /api/upload
 ```
@@ -217,11 +222,13 @@ npm start
 ### Database
 
 **MongoDB Atlas** (recommended):
+
 - Free tier: 512MB
 - Automatic backups
 - Connection string: `mongodb+srv://...`
 
 **Redis Cloud** (recommended):
+
 - Free tier: 30MB
 - Managed service
 
@@ -245,6 +252,7 @@ npm start
 ### Logs
 
 Winston logger outputs to:
+
 - Console (development)
 - File: `logs/app.log` (production)
 
@@ -262,21 +270,25 @@ curl http://localhost:4000/api/health
 ## 🐛 Troubleshooting
 
 **MongoDB connection fails:**
+
 - Check `MONGO_URI` in `.env`
 - Ensure MongoDB is running
 - Check firewall/network access
 
 **Redis connection fails:**
+
 - Check `REDIS_HOST` and `REDIS_PORT`
 - Ensure Redis is running
 - Bull queue requires Redis
 
 **Socket.IO not connecting:**
+
 - Check CORS `ALLOWED_ORIGINS`
 - Ensure frontend URL is allowed
 - Check firewall
 
 **Build fails:**
+
 - Run `npm run build` to see TypeScript errors
 - Check `tsconfig.json`
 

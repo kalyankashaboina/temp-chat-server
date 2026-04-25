@@ -15,9 +15,7 @@ let server: http.Server;
 async function bootstrap() {
   logger.info(' Starting Relay Chat Server...');
 
-  
-    await connectMongo();
- 
+  await connectMongo();
 
   // Connect to Redis (non-blocking, app works without Redis)
   try {

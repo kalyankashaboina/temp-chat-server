@@ -69,7 +69,7 @@ export function registerSocketEvents(io: Server): void {
     logger.info('[SOCKET] Connection attempt initiated', {
       socketId: socket.id,
       handshakeAuth: !!socket.handshake.auth,
-      handshakeQuery: socket.handshake.query
+      handshakeQuery: socket.handshake.query,
     });
 
     const userId = socket.data.userId;
@@ -78,7 +78,7 @@ export function registerSocketEvents(io: Server): void {
       logger.warn('[SOCKET] Connection rejected - no userId in socket data', {
         socketId: socket.id,
         socketData: socket.data,
-        reason: 'Missing authentication userId'
+        reason: 'Missing authentication userId',
       });
       socket.disconnect(true);
       return;
@@ -86,12 +86,12 @@ export function registerSocketEvents(io: Server): void {
 
     logger.info('[SOCKET] userId extracted from socket data', {
       socketId: socket.id,
-      userId
+      userId,
     });
 
     logger.info('[SOCKET] Fetching user from database', {
       socketId: socket.id,
-      userId
+      userId,
     });
 
     const user = await User.findById(userId).select('username').lean();
@@ -100,7 +100,7 @@ export function registerSocketEvents(io: Server): void {
       logger.warn('[SOCKET] Connection rejected - user not found', {
         socketId: socket.id,
         userId,
-        reason: 'User does not exist in database'
+        reason: 'User does not exist in database',
       });
       socket.disconnect(true);
       return;
@@ -112,7 +112,7 @@ export function registerSocketEvents(io: Server): void {
       socketId: socket.id,
       userId,
       username,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Join personal room
@@ -120,7 +120,7 @@ export function registerSocketEvents(io: Server): void {
     logger.debug('[SOCKET] User joined personal room', {
       socketId: socket.id,
       userId,
-      roomId: userId
+      roomId: userId,
     });
 
     // Mark online
@@ -128,13 +128,13 @@ export function registerSocketEvents(io: Server): void {
     logger.info('[SOCKET] User marked as online', {
       userId,
       onlineUsersCount: onlineUsers.size,
-      onlineUsersList: Array.from(onlineUsers)
+      onlineUsersList: Array.from(onlineUsers),
     });
 
     logger.info('[SOCKET] Broadcasting USER_ONLINE to all clients', {
       userId,
       username,
-      broadcastToAll: true
+      broadcastToAll: true,
     });
 
     io.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
@@ -143,19 +143,19 @@ export function registerSocketEvents(io: Server): void {
     logger.info('[SOCKET] Emitting PRESENCE_INIT to connecting client', {
       socketId: socket.id,
       userId,
-      onlineUsersCount: onlineUsers.size
+      onlineUsersCount: onlineUsers.size,
     });
 
     socket.emit(SOCKET_EVENTS.PRESENCE_INIT, { onlineUsers: Array.from(onlineUsers) });
     logger.debug('[SOCKET] PRESENCE_INIT emitted', {
       userId,
-      onlineUsersCount: onlineUsers.size
+      onlineUsersCount: onlineUsers.size,
     });
 
     // Join all conversation rooms
     logger.info('[SOCKET] Fetching user conversations from database', {
       userId,
-      socketId: socket.id
+      socketId: socket.id,
     });
 
     const conversations = await Conversation.find({ participants: userId }).select('_id').lean();
@@ -163,7 +163,7 @@ export function registerSocketEvents(io: Server): void {
     logger.info('[SOCKET] User conversations retrieved', {
       userId,
       conversationCount: conversations.length,
-      conversationIds: conversations.map(c => c._id.toString()).slice(0, 10)
+      conversationIds: conversations.map((c) => c._id.toString()).slice(0, 10),
     });
 
     conversations.forEach((c) => {
@@ -172,7 +172,7 @@ export function registerSocketEvents(io: Server): void {
       logger.debug('[SOCKET] User joined conversation room', {
         userId,
         socketId: socket.id,
-        conversationId
+        conversationId,
       });
     });
 
@@ -182,7 +182,7 @@ export function registerSocketEvents(io: Server): void {
       username,
       conversationCount: conversations.length,
       totalOnlineUsers: onlineUsers.size,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // ── message:send ───────────────────────────────────── ASYNC QUEUE
@@ -191,27 +191,26 @@ export function registerSocketEvents(io: Server): void {
     socket.on(
       SOCKET_EVENTS.MSG_SEND,
       ({ conversationId, content, tempId, replyTo }: SendMessagePayload & { replyTo?: any }) => {
-        logger.info('[SOCKET] MSG_SEND received', { 
-          userId, 
-          socketId: socket.id, 
-          conversationId, 
+        logger.info('[SOCKET] MSG_SEND received', {
+          userId,
+          socketId: socket.id,
+          conversationId,
           tempId,
           contentLength: content?.length,
           hasReplyTo: !!replyTo,
-          payload: { conversationId, content: content?.substring(0, 50), tempId, replyTo }
+          payload: { conversationId, content: content?.substring(0, 50), tempId, replyTo },
         });
-        
+
         safeAsync(async () => {
           if (!conversationId || !content?.trim()) {
-            logger.warn('[SOCKET] MSG_SEND invalid payload', { 
-              userId, 
-              conversationId, 
+            logger.warn('[SOCKET] MSG_SEND invalid payload', {
+              userId,
+              conversationId,
               tempId,
               contentTrim: content?.trim(),
-              reason: 'Missing conversationId or empty content'
+              reason: 'Missing conversationId or empty content',
             });
 
-           
             socket.emit(SOCKET_EVENTS.MSG_FAILED, {
               tempId,
               conversationId,
@@ -234,12 +233,15 @@ export function registerSocketEvents(io: Server): void {
           // Verify conversation membership
           try {
             await assertConversationMember(conversationId, userId);
-            logger.info('[SOCKET] User verified as conversation member', { userId, conversationId });
+            logger.info('[SOCKET] User verified as conversation member', {
+              userId,
+              conversationId,
+            });
           } catch (err) {
-            logger.error('[SOCKET] User not member of conversation', { 
-              userId, 
-              conversationId, 
-              error: (err as Error).message 
+            logger.error('[SOCKET] User not member of conversation', {
+              userId,
+              conversationId,
+              error: (err as Error).message,
             });
             socket.emit(SOCKET_EVENTS.MSG_FAILED, {
               tempId,
@@ -250,14 +252,14 @@ export function registerSocketEvents(io: Server): void {
           }
 
           const finalTempId = tempId || `temp-${Date.now()}-${Math.random()}`;
-          
+
           // ✨ CRITICAL: Queue DB write (NON-BLOCKING)
           logger.info('[SOCKET] Queuing message for DB save', {
             userId,
             conversationId,
             tempId: finalTempId,
             contentLength: content.trim().length,
-            hasReplyTo: !!replyTo
+            hasReplyTo: !!replyTo,
           });
 
           try {
@@ -269,17 +271,17 @@ export function registerSocketEvents(io: Server): void {
               tempId: finalTempId,
               replyTo,
             });
-            logger.info('[SOCKET] Message successfully queued', { 
-              userId, 
-              conversationId, 
-              tempId: finalTempId 
+            logger.info('[SOCKET] Message successfully queued', {
+              userId,
+              conversationId,
+              tempId: finalTempId,
             });
           } catch (queueErr) {
             logger.error('[SOCKET] Failed to queue message', {
               userId,
               conversationId,
               tempId: finalTempId,
-              error: (queueErr as Error).message
+              error: (queueErr as Error).message,
             });
             socket.emit(SOCKET_EVENTS.MSG_FAILED, {
               tempId: finalTempId,
@@ -306,16 +308,20 @@ export function registerSocketEvents(io: Server): void {
           logger.info('[SOCKET] Broadcasting MSG_NEW to room', {
             conversationId,
             tempId: finalTempId,
-            recipientCount: 'all users in conversation'
+            recipientCount: 'all users in conversation',
           });
           io.to(conversationId).emit(SOCKET_EVENTS.MSG_NEW, msgData);
-          logger.debug('[SOCKET] MSG_NEW emitted', { conversationId, tempId: finalTempId, msgData });
+          logger.debug('[SOCKET] MSG_NEW emitted', {
+            conversationId,
+            tempId: finalTempId,
+            msgData,
+          });
 
           // ACK to sender
           logger.info('[SOCKET] Emitting MSG_SENT acknowledgment to sender', {
             userId,
             tempId: finalTempId,
-            conversationId
+            conversationId,
           });
           socket.emit(SOCKET_EVENTS.MSG_SENT, {
             tempId: finalTempId,
@@ -329,15 +335,22 @@ export function registerSocketEvents(io: Server): void {
           logger.info('[SOCKET] Emitting MSG_DELIVERED to others', {
             conversationId,
             tempId: finalTempId,
-            excludeSocketId: socket.id
+            excludeSocketId: socket.id,
           });
           io.to(conversationId).except(socket.id).emit(SOCKET_EVENTS.MSG_DELIVERED, {
             messageId: finalTempId,
             conversationId,
           });
-          logger.debug('[SOCKET] MSG_DELIVERED emitted to others', { conversationId, tempId: finalTempId });
+          logger.debug('[SOCKET] MSG_DELIVERED emitted to others', {
+            conversationId,
+            tempId: finalTempId,
+          });
 
-          logger.info('[SOCKET] MSG_SEND complete', { userId, conversationId, tempId: finalTempId });
+          logger.info('[SOCKET] MSG_SEND complete', {
+            userId,
+            conversationId,
+            tempId: finalTempId,
+          });
         });
       }
     );
@@ -345,10 +358,10 @@ export function registerSocketEvents(io: Server): void {
     // ── message:delete ────────────────────────────────────────────────
 
     socket.on(SOCKET_EVENTS.MSG_DELETE, ({ messageId }: DeleteMessagePayload) => {
-      logger.info('[SOCKET] MSG_DELETE received', { 
-        userId, 
-        socketId: socket.id, 
-        messageId 
+      logger.info('[SOCKET] MSG_DELETE received', {
+        userId,
+        socketId: socket.id,
+        messageId,
       });
 
       safeAsync(async () => {
@@ -361,53 +374,53 @@ export function registerSocketEvents(io: Server): void {
           });
 
           if (!msg) {
-            logger.warn('[SOCKET] Message not found or already deleted', { 
-              messageId, 
+            logger.warn('[SOCKET] Message not found or already deleted', {
+              messageId,
               userId,
-              reason: 'Message not found or user not sender or already deleted'
+              reason: 'Message not found or user not sender or already deleted',
             });
             return;
           }
 
-          logger.info('[SOCKET] Message found, verifying conversation access', { 
-            messageId, 
+          logger.info('[SOCKET] Message found, verifying conversation access', {
+            messageId,
             conversationId: msg.conversationId.toString(),
-            userId
+            userId,
           });
 
           await assertConversationMember(msg.conversationId.toString(), userId);
-          logger.info('[SOCKET] Conversation access verified', { 
+          logger.info('[SOCKET] Conversation access verified', {
             conversationId: msg.conversationId.toString(),
-            userId
+            userId,
           });
 
           msg.isDeleted = true;
           msg.deletedAt = new Date();
           await msg.save();
-          logger.info('[SOCKET] Message marked as deleted in DB', { 
-            messageId, 
+          logger.info('[SOCKET] Message marked as deleted in DB', {
+            messageId,
             conversationId: msg.conversationId.toString(),
-            deletedAt: msg.deletedAt
+            deletedAt: msg.deletedAt,
           });
 
           logger.info('[SOCKET] Broadcasting MSG_DELETED to room', {
             conversationId: msg.conversationId.toString(),
-            messageId
+            messageId,
           });
           io.to(msg.conversationId.toString()).emit(SOCKET_EVENTS.MSG_DELETED, {
             messageId,
             conversationId: msg.conversationId.toString(),
           });
-          logger.debug('[SOCKET] MSG_DELETED emitted', { 
-            messageId, 
-            conversationId: msg.conversationId.toString() 
+          logger.debug('[SOCKET] MSG_DELETED emitted', {
+            messageId,
+            conversationId: msg.conversationId.toString(),
           });
         } catch (err) {
           logger.error('[SOCKET] MSG_DELETE error', {
             userId,
             messageId,
             error: (err as Error).message,
-            stack: (err as Error).stack
+            stack: (err as Error).stack,
           });
         }
       });
@@ -423,7 +436,7 @@ export function registerSocketEvents(io: Server): void {
           socketId: socket.id,
           messageId,
           contentLength: content?.length,
-          payload: { messageId, content: content?.substring(0, 50) }
+          payload: { messageId, content: content?.substring(0, 50) },
         });
 
         safeAsync(async () => {
@@ -432,7 +445,7 @@ export function registerSocketEvents(io: Server): void {
               logger.warn('[SOCKET] MSG_EDIT invalid payload', {
                 userId,
                 messageId,
-                reason: 'Content is empty'
+                reason: 'Content is empty',
               });
               return;
             }
@@ -448,7 +461,7 @@ export function registerSocketEvents(io: Server): void {
               logger.warn('[SOCKET] Message not found for edit', {
                 messageId,
                 userId,
-                reason: 'Message not found or user not sender'
+                reason: 'Message not found or user not sender',
               });
               return;
             }
@@ -456,7 +469,7 @@ export function registerSocketEvents(io: Server): void {
             logger.info('[SOCKET] Message found, verifying conversation access', {
               messageId,
               conversationId: msg.conversationId.toString(),
-              userId
+              userId,
             });
 
             await assertConversationMember(msg.conversationId.toString(), userId);
@@ -472,12 +485,12 @@ export function registerSocketEvents(io: Server): void {
               conversationId: msg.conversationId.toString(),
               oldContentLength: oldContent.length,
               newContentLength: msg.content.length,
-              editedAt: msg.editedAt
+              editedAt: msg.editedAt,
             });
 
             logger.info('[SOCKET] Broadcasting MSG_EDITED to room', {
               conversationId: msg.conversationId.toString(),
-              messageId
+              messageId,
             });
 
             io.to(msg.conversationId.toString()).emit(SOCKET_EVENTS.MSG_EDITED, {
@@ -489,14 +502,14 @@ export function registerSocketEvents(io: Server): void {
 
             logger.debug('[SOCKET] MSG_EDITED emitted', {
               messageId,
-              conversationId: msg.conversationId.toString()
+              conversationId: msg.conversationId.toString(),
             });
           } catch (err) {
             logger.error('[SOCKET] MSG_EDIT error', {
               userId,
               messageId,
               error: (err as Error).message,
-              stack: (err as Error).stack
+              stack: (err as Error).stack,
             });
           }
         });
@@ -522,25 +535,25 @@ export function registerSocketEvents(io: Server): void {
           messageId,
           emoji,
           conversationId,
-          payload: { messageId, emoji, conversationId }
+          payload: { messageId, emoji, conversationId },
         });
 
         safeAsync(async () => {
           try {
             logger.info('[SOCKET] Verifying conversation membership for reaction', {
               userId,
-              conversationId
+              conversationId,
             });
 
             await assertConversationMember(conversationId, userId);
             logger.info('[SOCKET] User verified as conversation member', {
               userId,
-              conversationId
+              conversationId,
             });
 
             logger.info('[SOCKET] Fetching message for reaction', {
               messageId,
-              conversationId
+              conversationId,
             });
 
             const msg = await Message.findById(messageId);
@@ -548,7 +561,7 @@ export function registerSocketEvents(io: Server): void {
             if (!msg) {
               logger.warn('[SOCKET] Message not found for reaction', {
                 messageId,
-                conversationId
+                conversationId,
               });
               return;
             }
@@ -556,7 +569,7 @@ export function registerSocketEvents(io: Server): void {
             if (msg.isDeleted) {
               logger.warn('[SOCKET] Cannot react to deleted message', {
                 messageId,
-                conversationId
+                conversationId,
               });
               return;
             }
@@ -575,7 +588,7 @@ export function registerSocketEvents(io: Server): void {
                 messageId,
                 userId,
                 emoji,
-                reason: 'User already reacted with this emoji'
+                reason: 'User already reacted with this emoji',
               });
               return;
             }
@@ -584,7 +597,7 @@ export function registerSocketEvents(io: Server): void {
               messageId,
               userId,
               emoji,
-              username
+              username,
             });
 
             (msg.reactions as any[]).push({ userId, emoji, username });
@@ -595,14 +608,14 @@ export function registerSocketEvents(io: Server): void {
               conversationId,
               userId,
               emoji,
-              totalReactions: msg.reactions.length
+              totalReactions: msg.reactions.length,
             });
 
             logger.info('[SOCKET] Broadcasting REACTION_ADDED to room', {
               conversationId,
               messageId,
               emoji,
-              userId
+              userId,
             });
 
             io.to(conversationId).emit(SOCKET_EVENTS.REACTION_ADDED, {
@@ -616,7 +629,7 @@ export function registerSocketEvents(io: Server): void {
             logger.debug('[SOCKET] REACTION_ADDED emitted', {
               messageId,
               conversationId,
-              emoji
+              emoji,
             });
           } catch (err) {
             logger.error('[SOCKET] MSG_REACT error', {
@@ -625,7 +638,7 @@ export function registerSocketEvents(io: Server): void {
               conversationId,
               emoji,
               error: (err as Error).message,
-              stack: (err as Error).stack
+              stack: (err as Error).stack,
             });
           }
         });
@@ -651,25 +664,25 @@ export function registerSocketEvents(io: Server): void {
           messageId,
           emoji,
           conversationId,
-          payload: { messageId, emoji, conversationId }
+          payload: { messageId, emoji, conversationId },
         });
 
         safeAsync(async () => {
           try {
             logger.info('[SOCKET] Verifying conversation membership for unreact', {
               userId,
-              conversationId
+              conversationId,
             });
 
             await assertConversationMember(conversationId, userId);
             logger.info('[SOCKET] User verified as conversation member', {
               userId,
-              conversationId
+              conversationId,
             });
 
             logger.info('[SOCKET] Fetching message for unreact', {
               messageId,
-              conversationId
+              conversationId,
             });
 
             const msg = await Message.findById(messageId);
@@ -677,7 +690,7 @@ export function registerSocketEvents(io: Server): void {
             if (!msg) {
               logger.warn('[SOCKET] Message not found for unreact', {
                 messageId,
-                conversationId
+                conversationId,
               });
               return;
             }
@@ -686,7 +699,7 @@ export function registerSocketEvents(io: Server): void {
               logger.info('[SOCKET] No reactions to remove', {
                 messageId,
                 emoji,
-                reason: 'Message has no reactions'
+                reason: 'Message has no reactions',
               });
               return;
             }
@@ -706,14 +719,14 @@ export function registerSocketEvents(io: Server): void {
                 userId,
                 emoji,
                 reactionsBeforeCount,
-                reactionsAfterCount
+                reactionsAfterCount,
               });
             } else {
               logger.info('[SOCKET] No matching reaction found to remove', {
                 messageId,
                 userId,
                 emoji,
-                reason: 'User did not have this emoji reaction'
+                reason: 'User did not have this emoji reaction',
               });
               return;
             }
@@ -722,7 +735,7 @@ export function registerSocketEvents(io: Server): void {
               conversationId,
               messageId,
               emoji,
-              userId
+              userId,
             });
 
             io.to(conversationId).emit(SOCKET_EVENTS.REACTION_REMOVED, {
@@ -735,7 +748,7 @@ export function registerSocketEvents(io: Server): void {
             logger.debug('[SOCKET] REACTION_REMOVED emitted', {
               messageId,
               conversationId,
-              emoji
+              emoji,
             });
           } catch (err) {
             logger.error('[SOCKET] MSG_UNREACT error', {
@@ -744,7 +757,7 @@ export function registerSocketEvents(io: Server): void {
               conversationId,
               emoji,
               error: (err as Error).message,
-              stack: (err as Error).stack
+              stack: (err as Error).stack,
             });
           }
         });
@@ -759,25 +772,25 @@ export function registerSocketEvents(io: Server): void {
         userId,
         socketId: socket.id,
         conversationId,
-        payload: { conversationId }
+        payload: { conversationId },
       });
 
       safeAsync(async () => {
         try {
           logger.info('[SOCKET] Verifying conversation membership for read receipt', {
             userId,
-            conversationId
+            conversationId,
           });
 
           await assertConversationMember(conversationId, userId);
           logger.info('[SOCKET] User verified as conversation member', {
             userId,
-            conversationId
+            conversationId,
           });
 
           logger.info('[SOCKET] Fetching unread messages', {
             conversationId,
-            userId
+            userId,
           });
 
           const unread = await Message.find({
@@ -787,19 +800,19 @@ export function registerSocketEvents(io: Server): void {
           }).select('_id');
 
           const ids = unread.map((m) => m._id.toString());
-          
+
           logger.info('[SOCKET] Unread messages found', {
             conversationId,
             userId,
             unreadCount: ids.length,
-            messageIds: ids.length > 0 ? ids.slice(0, 5) : []
+            messageIds: ids.length > 0 ? ids.slice(0, 5) : [],
           });
 
           if (!ids.length) {
             logger.info('[SOCKET] No unread messages to mark', {
               conversationId,
               userId,
-              reason: 'All messages already read'
+              reason: 'All messages already read',
             });
             return;
           }
@@ -807,7 +820,7 @@ export function registerSocketEvents(io: Server): void {
           logger.info('[SOCKET] Queuing read receipts for processing', {
             conversationId,
             userId,
-            messageCount: ids.length
+            messageCount: ids.length,
           });
 
           // ✨ CRITICAL: Queue read receipt processing (NON-BLOCKING)
@@ -820,14 +833,14 @@ export function registerSocketEvents(io: Server): void {
           logger.info('[SOCKET] Read receipts queued successfully', {
             conversationId,
             userId,
-            messageCount: ids.length
+            messageCount: ids.length,
           });
 
           // ✨ INSTANT BROADCAST: Don't wait for DB update
           logger.info('[SOCKET] Broadcasting MSG_READ to room', {
             conversationId,
             userId,
-            messageCount: ids.length
+            messageCount: ids.length,
           });
 
           io.to(conversationId).emit(SOCKET_EVENTS.MSG_READ, {
@@ -840,20 +853,20 @@ export function registerSocketEvents(io: Server): void {
           logger.debug('[SOCKET] MSG_READ emitted', {
             conversationId,
             userId,
-            messageCount: ids.length
+            messageCount: ids.length,
           });
 
           logger.info('[SOCKET] CONV_READ complete', {
             conversationId,
             userId,
-            messageCount: ids.length
+            messageCount: ids.length,
           });
         } catch (err) {
           logger.error('[SOCKET] CONV_READ error', {
             userId,
             conversationId,
             error: (err as Error).message,
-            stack: (err as Error).stack
+            stack: (err as Error).stack,
           });
         }
       });
@@ -867,39 +880,39 @@ export function registerSocketEvents(io: Server): void {
         socketId: socket.id,
         conversationId,
         username,
-        payload: { conversationId }
+        payload: { conversationId },
       });
 
       safeAsync(async () => {
         try {
           logger.info('[SOCKET] Verifying conversation membership for typing', {
             userId,
-            conversationId
+            conversationId,
           });
 
           await assertConversationMember(conversationId, userId);
           logger.info('[SOCKET] User verified as conversation member', {
             userId,
-            conversationId
+            conversationId,
           });
 
           logger.info('[SOCKET] Broadcasting TYPING_START to others in room', {
             conversationId,
             userId,
             username,
-            excludeSocketId: socket.id
+            excludeSocketId: socket.id,
           });
 
           socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_START, {
             conversationId,
             userName: username,
-            userId
+            userId,
           });
 
           logger.debug('[SOCKET] TYPING_START emitted', {
             conversationId,
             userId,
-            username
+            username,
           });
 
           // Auto-stop after 8s (handles tab-close without typing:stop)
@@ -911,26 +924,26 @@ export function registerSocketEvents(io: Server): void {
 
           logger.debug('[SOCKET] Setting typing auto-stop timeout', {
             key,
-            timeoutMs: SOCKET.TYPING_TIMEOUT_MS
+            timeoutMs: SOCKET.TYPING_TIMEOUT_MS,
           });
 
           const timer = setTimeout(() => {
             logger.info('[SOCKET] Typing timeout triggered - auto-stop', {
               userId,
               conversationId,
-              reason: 'Auto-stop after 8 seconds of inactivity'
+              reason: 'Auto-stop after 8 seconds of inactivity',
             });
 
             socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_STOP, {
               conversationId,
               userName: username,
-              userId
+              userId,
             });
 
             logger.debug('[SOCKET] TYPING_STOP auto-emitted', {
               conversationId,
               userId,
-              username
+              username,
             });
 
             typingTimeouts.delete(key);
@@ -940,14 +953,14 @@ export function registerSocketEvents(io: Server): void {
           typingTimeouts.set(key, timer);
           logger.debug('[SOCKET] Typing timeout registered', {
             key,
-            activeTypingUsers: typingTimeouts.size
+            activeTypingUsers: typingTimeouts.size,
           });
         } catch (err) {
           logger.error('[SOCKET] TYPING_START error', {
             userId,
             conversationId,
             error: (err as Error).message,
-            stack: (err as Error).stack
+            stack: (err as Error).stack,
           });
         }
       });
@@ -959,39 +972,39 @@ export function registerSocketEvents(io: Server): void {
         socketId: socket.id,
         conversationId,
         username,
-        payload: { conversationId }
+        payload: { conversationId },
       });
 
       safeAsync(async () => {
         try {
           logger.info('[SOCKET] Verifying conversation membership for typing stop', {
             userId,
-            conversationId
+            conversationId,
           });
 
           await assertConversationMember(conversationId, userId);
           logger.info('[SOCKET] User verified as conversation member', {
             userId,
-            conversationId
+            conversationId,
           });
 
           const key = `${userId}:${conversationId}`;
           if (typingTimeouts.has(key)) {
             logger.debug('[SOCKET] Clearing typing timeout', {
               key,
-              reason: 'Explicit typing:stop received'
+              reason: 'Explicit typing:stop received',
             });
 
             clearTimeout(typingTimeouts.get(key)!);
             typingTimeouts.delete(key);
             logger.debug('[SOCKET] Typing timeout removed from map', {
               key,
-              remainingTypers: typingTimeouts.size
+              remainingTypers: typingTimeouts.size,
             });
           } else {
             logger.debug('[SOCKET] No active typing timeout found', {
               key,
-              reason: 'Already cleared or never started'
+              reason: 'Already cleared or never started',
             });
           }
 
@@ -999,26 +1012,26 @@ export function registerSocketEvents(io: Server): void {
             conversationId,
             userId,
             username,
-            excludeSocketId: socket.id
+            excludeSocketId: socket.id,
           });
 
           socket.to(conversationId).emit(SOCKET_EVENTS.TYPING_STOP, {
             conversationId,
             userName: username,
-            userId
+            userId,
           });
 
           logger.debug('[SOCKET] TYPING_STOP emitted', {
             conversationId,
             userId,
-            username
+            username,
           });
         } catch (err) {
           logger.error('[SOCKET] TYPING_STOP error', {
             userId,
             conversationId,
             error: (err as Error).message,
-            stack: (err as Error).stack
+            stack: (err as Error).stack,
           });
         }
       });
@@ -1032,7 +1045,7 @@ export function registerSocketEvents(io: Server): void {
         socketId: socket.id,
         toUserId,
         callType: type,
-        payload: { toUserId, type }
+        payload: { toUserId, type },
       });
 
       const fromUserActive = activeCalls.has(userId);
@@ -1043,7 +1056,7 @@ export function registerSocketEvents(io: Server): void {
         toUserId,
         userHasActiveCall: fromUserActive,
         recipientHasActiveCall: toUserActive,
-        activeCallsCount: activeCalls.size
+        activeCallsCount: activeCalls.size,
       });
 
       if (fromUserActive || toUserActive) {
@@ -1052,7 +1065,7 @@ export function registerSocketEvents(io: Server): void {
           toUserId,
           userBusy: fromUserActive,
           recipientBusy: toUserActive,
-          reason: 'One or both users already have active calls'
+          reason: 'One or both users already have active calls',
         });
         socket.emit(SOCKET_EVENTS.CALL_BUSY, { toUserId });
         logger.debug('[SOCKET] CALL_BUSY emitted', { userId, toUserId });
@@ -1062,7 +1075,7 @@ export function registerSocketEvents(io: Server): void {
       logger.info('[SOCKET] Registering active call', {
         userId,
         toUserId,
-        callType: type
+        callType: type,
       });
 
       activeCalls.set(userId, toUserId);
@@ -1072,7 +1085,7 @@ export function registerSocketEvents(io: Server): void {
         toUserId,
         fromUserId: userId,
         callType: type,
-        activeCallsCount: activeCalls.size
+        activeCallsCount: activeCalls.size,
       });
 
       io.to(toUserId).emit(SOCKET_EVENTS.CALL_INCOMING, { fromUserId: userId, type });
@@ -1084,12 +1097,12 @@ export function registerSocketEvents(io: Server): void {
         userId,
         socketId: socket.id,
         fromUserId,
-        payload: { fromUserId }
+        payload: { fromUserId },
       });
 
       logger.info('[SOCKET] Broadcasting CALL_ACCEPTED to caller', {
         toUserId: fromUserId,
-        byUserId: userId
+        byUserId: userId,
       });
 
       io.to(fromUserId).emit(SOCKET_EVENTS.CALL_ACCEPTED, { byUserId: userId });
@@ -1101,13 +1114,13 @@ export function registerSocketEvents(io: Server): void {
         userId,
         socketId: socket.id,
         fromUserId,
-        payload: { fromUserId }
+        payload: { fromUserId },
       });
 
       logger.info('[SOCKET] Cleaning up active call', {
         userId,
         fromUserId,
-        reason: 'Call rejected by recipient'
+        reason: 'Call rejected by recipient',
       });
 
       activeCalls.delete(userId);
@@ -1116,7 +1129,7 @@ export function registerSocketEvents(io: Server): void {
       logger.info('[SOCKET] Broadcasting CALL_REJECTED to caller', {
         toUserId: fromUserId,
         byUserId: userId,
-        activeCallsCount: activeCalls.size
+        activeCallsCount: activeCalls.size,
       });
 
       io.to(fromUserId).emit(SOCKET_EVENTS.CALL_REJECTED, { byUserId: userId });
@@ -1128,13 +1141,13 @@ export function registerSocketEvents(io: Server): void {
         userId,
         socketId: socket.id,
         toUserId,
-        payload: { toUserId }
+        payload: { toUserId },
       });
 
       logger.info('[SOCKET] Cleaning up active call', {
         userId,
         toUserId,
-        reason: 'Call ended by participant'
+        reason: 'Call ended by participant',
       });
 
       activeCalls.delete(userId);
@@ -1143,7 +1156,7 @@ export function registerSocketEvents(io: Server): void {
       logger.info('[SOCKET] Broadcasting CALL_ENDED to peer', {
         toUserId,
         fromUserId: userId,
-        activeCallsCount: activeCalls.size
+        activeCallsCount: activeCalls.size,
       });
 
       io.to(toUserId).emit(SOCKET_EVENTS.CALL_ENDED, { fromUserId: userId });
@@ -1161,13 +1174,13 @@ export function registerSocketEvents(io: Server): void {
           toUserId,
           offerType: offer?.type,
           hasSdp: !!offer?.sdp,
-          sdpLength: offer?.sdp?.length
+          sdpLength: offer?.sdp?.length,
         });
 
         logger.info('[WEBRTC] Broadcasting WEBRTC_OFFER to peer', {
           toUserId,
           fromUserId: userId,
-          offerType: offer?.type
+          offerType: offer?.type,
         });
 
         io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_OFFER, {
@@ -1177,7 +1190,7 @@ export function registerSocketEvents(io: Server): void {
 
         logger.debug('[WEBRTC] WEBRTC_OFFER emitted', {
           toUserId,
-          fromUserId: userId
+          fromUserId: userId,
         });
       }
     );
@@ -1193,13 +1206,13 @@ export function registerSocketEvents(io: Server): void {
           toUserId,
           answerType: answer?.type,
           hasSdp: !!answer?.sdp,
-          sdpLength: answer?.sdp?.length
+          sdpLength: answer?.sdp?.length,
         });
 
         logger.info('[WEBRTC] Broadcasting WEBRTC_ANSWER to peer', {
           toUserId,
           fromUserId: userId,
-          answerType: answer?.type
+          answerType: answer?.type,
         });
 
         io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ANSWER, {
@@ -1209,7 +1222,7 @@ export function registerSocketEvents(io: Server): void {
 
         logger.debug('[WEBRTC] WEBRTC_ANSWER emitted', {
           toUserId,
-          fromUserId: userId
+          fromUserId: userId,
         });
       }
     );
@@ -1225,12 +1238,12 @@ export function registerSocketEvents(io: Server): void {
           toUserId,
           // candidateType: candidate?.type,
           hasCandidate: !!candidate?.candidate,
-          candidateLength: candidate?.candidate?.length
+          candidateLength: candidate?.candidate?.length,
         });
 
         logger.debug('[WEBRTC] Broadcasting WEBRTC_ICE to peer', {
           toUserId,
-          fromUserId: userId
+          fromUserId: userId,
         });
 
         io.to(toUserId).emit(SOCKET_EVENTS.WEBRTC_ICE, {
@@ -1240,7 +1253,7 @@ export function registerSocketEvents(io: Server): void {
 
         logger.debug('[WEBRTC] WEBRTC_ICE emitted', {
           toUserId,
-          fromUserId: userId
+          fromUserId: userId,
         });
       }
     );
@@ -1252,7 +1265,7 @@ export function registerSocketEvents(io: Server): void {
         socketId: socket.id,
         userId,
         reason,
-        wasOnline: onlineUsers.has(userId)
+        wasOnline: onlineUsers.has(userId),
       });
 
       const wasOnline = onlineUsers.has(userId);
@@ -1261,12 +1274,12 @@ export function registerSocketEvents(io: Server): void {
       logger.info('[SOCKET] User removed from online set', {
         userId,
         wasOnline,
-        remainingOnlineUsers: onlineUsers.size
+        remainingOnlineUsers: onlineUsers.size,
       });
 
       logger.info('[SOCKET] Broadcasting USER_OFFLINE to all clients', {
         userId,
-        broadcastToAll: true
+        broadcastToAll: true,
       });
 
       io.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
@@ -1286,7 +1299,7 @@ export function registerSocketEvents(io: Server): void {
         logger.info('[SOCKET] Cleared typing timeouts', {
           userId,
           timeoutsCleared: typingTimeoutsCleared,
-          remainingTypingTimeouts: typingTimeouts.size
+          remainingTypingTimeouts: typingTimeouts.size,
         });
       }
 
@@ -1296,14 +1309,14 @@ export function registerSocketEvents(io: Server): void {
         logger.info('[SOCKET] Ending active call due to disconnect', {
           userId,
           peerId: peer,
-          reason: `Peer disconnected (${reason})`
+          reason: `Peer disconnected (${reason})`,
         });
 
         io.to(peer).emit(SOCKET_EVENTS.CALL_ENDED, { fromUserId: userId });
         logger.debug('[SOCKET] CALL_ENDED emitted to peer', {
           toUserId: peer,
           fromUserId: userId,
-          reason
+          reason,
         });
 
         activeCalls.delete(peer);
@@ -1312,7 +1325,7 @@ export function registerSocketEvents(io: Server): void {
         logger.info('[SOCKET] Active call cleaned up', {
           userId,
           peerId: peer,
-          activeCallsRemaining: activeCalls.size
+          activeCallsRemaining: activeCalls.size,
         });
       }
 
@@ -1321,7 +1334,7 @@ export function registerSocketEvents(io: Server): void {
         userId,
         onlineUsersRemaining: onlineUsers.size,
         activeCallsRemaining: activeCalls.size,
-        typingTimeoutsRemaining: typingTimeouts.size
+        typingTimeoutsRemaining: typingTimeouts.size,
       });
     });
   });
